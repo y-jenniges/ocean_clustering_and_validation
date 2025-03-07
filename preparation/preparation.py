@@ -174,7 +174,7 @@ def convert_units(tables, connection):
 
 def t_to_pot_t(connection):
     """ Convert temperature to potential temperature.
-    :param connection (sqlite3.Connection): Connection to database.
+    :param connection: (sqlite3.Connection) Connection to database.
     """
     logging.info("Convert temperature to potential temperature...")
     t_table = "P_TEMPERATURE"
@@ -189,10 +189,13 @@ def t_to_pot_t(connection):
                                                lon=df_t["LONGITUDE"], lat=df_t["LATITUDE"])
     df_t["pot_temperature"] = gsw.conversions.pt0_from_t(SA=df_t["salinity_absolute"], t=df_t["VAL"],
                                                          p=df_t["LEV_DBAR"])
+    count_old = len(df_t)
     df_t.dropna(subset=["pot_temperature"], inplace=True)
     df_t.drop("salinity_absolute", axis="columns", inplace=True)
+    count_new = len(df_t)
 
-    # todo figure out how many values were dropped here
+    # Output how many values were not converted and thus dropped
+    logging.info(f"  Conversion not possible for {count_old-count_new} values.")
 
     # Write potential temperature table to database
     df_t.to_sql("temp", connection, if_exists="fail")
@@ -209,9 +212,9 @@ def t_to_pot_t(connection):
     cursor.execute(q)
 
     # Drop original table
-    q = f"Drop table {t_table};"
+    q = f"DROP TABLE {t_table};"
     cursor.execute(q)
-    q = f"drop table temp;"
+    q = f"DROP TABLE temp;"
     cursor.execute(q)
 
     # Renaming
@@ -269,13 +272,11 @@ def prepare_database(parameters, quality_flags, source_db_path="../../data/comfo
         # Add latitude, longitude, dateandtime information to other tables
         add_location_time(tables=[p for p in parameters if p not in ["P_TEMPERATURE,  P_SALINITY"]], cursor=dest_cursor)
 
-
-
         # Unit conversions
         convert_units(tables=parameters, connection=dest_conn)
 
         # Average values at same location and position
-        average_over_location_time(tables=[p for p in parameters if p not in ["P_TEMPERATURE,  P_SALINITY"]], cursor=dest_cursor)
+        average_over_location_time(tables=[p for p in parameters if p not in ["P_TEMPERATURE",  "P_SALINITY"]], cursor=dest_cursor)
         logging.info(f"Number of samples (all averaged): {get_num_samples(conn=dest_conn, table_names=parameters)}")
 
         # Convert temperature to potential temperature
