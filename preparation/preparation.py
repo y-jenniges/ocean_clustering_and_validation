@@ -14,7 +14,7 @@ def impute_data():
     return
 
 
-def copy_and_filter_tables(tables, quality_flags, dest_cursor, source_db_path):
+def __copy_and_filter_tables(tables, quality_flags, dest_cursor, source_db_path):
     """ Copy tables from a database to another database and filter for quality.
     :param tables: Table names to copy.
     :param quality_flags: Specification for PQF1, PQF2 and SQF used to filter the data for quality.
@@ -45,7 +45,7 @@ def copy_and_filter_tables(tables, quality_flags, dest_cursor, source_db_path):
         dest_cursor.execute(query)
 
 
-def add_location_time(tables, cursor):
+def __add_location_time(tables, cursor):
     """ Add latitude, longitude and dateandtime information to tables.
     :param tables: Names of tables to add the location and time information to.
     :param cursor: Cursor of the database.
@@ -76,7 +76,7 @@ def add_location_time(tables, cursor):
     cursor.execute(query)
 
 
-def average_over_location_time(tables, cursor):
+def __average_over_location_time(tables, cursor):
     """ Average VAL column of a table over LATITUDE, LONGITUDE and DATEANDTIME columns.
     :param tables: Tables to compute the average for.
     :param cursor: Cursor to the database.
@@ -111,7 +111,7 @@ def average_over_location_time(tables, cursor):
     cursor.execute(query)
 
 
-def add_temperature_salinity(tables, cursor):
+def __add_temperature_salinity(tables, cursor):
     """ Joining temperature and salinity information to given tables.
     :param tables: Tables to add temperature and salinity to.
     :param cursor: Cursor to the database.
@@ -155,7 +155,7 @@ def add_temperature_salinity(tables, cursor):
     cursor.execute(query)
 
 
-def convert_units(tables, connection):
+def __convert_units(tables, connection):
     logging.info("Converting units...")
 
     # Define converter and convert
@@ -172,7 +172,7 @@ def convert_units(tables, connection):
     cursor.close()
 
 
-def t_to_pot_t(connection):
+def __t_to_pot_t(connection):
     """ Convert temperature to potential temperature.
     :param connection: (sqlite3.Connection) Connection to database.
     """
@@ -255,32 +255,32 @@ def prepare_database(parameters, quality_flags, source_db_path="../../data/comfo
         dest_cursor = dest_conn.cursor()
 
         # Copy desired tables to new database and filter for quality
-        copy_and_filter_tables(tables=parameters, quality_flags=quality_flags,
-                               dest_cursor=dest_cursor, source_db_path=source_db_path)
+        __copy_and_filter_tables(tables=parameters, quality_flags=quality_flags,
+                                dest_cursor=dest_cursor, source_db_path=source_db_path)
         logging.info(f"Number of samples (filtered tables): {get_num_samples(conn=dest_conn, table_names=parameters)}")
 
         # Add latitude, longitude, dateandtime information to temperature and salinity tables
-        add_location_time(tables=["P_TEMPERATURE", "P_SALINITY"], cursor=dest_cursor)
+        __add_location_time(tables=["P_TEMPERATURE", "P_SALINITY"], cursor=dest_cursor)
 
         # Average temperature and salinity values at the same time and location
-        average_over_location_time(tables=["P_TEMPERATURE,  P_SALINITY"], cursor=dest_cursor)
+        __average_over_location_time(tables=["P_TEMPERATURE,  P_SALINITY"], cursor=dest_cursor)
         logging.info(f"Number of samples (TS averaged over time and location): {get_num_samples(conn=dest_conn, table_names=parameters)}")
 
         # Add temperature and salinity information to all tables
-        add_temperature_salinity(tables=parameters, cursor=dest_cursor)
+        __add_temperature_salinity(tables=parameters, cursor=dest_cursor)
 
         # Add latitude, longitude, dateandtime information to other tables
-        add_location_time(tables=[p for p in parameters if p not in ["P_TEMPERATURE,  P_SALINITY"]], cursor=dest_cursor)
+        __add_location_time(tables=[p for p in parameters if p not in ["P_TEMPERATURE,  P_SALINITY"]], cursor=dest_cursor)
 
         # Unit conversions
-        convert_units(tables=parameters, connection=dest_conn)
+        __convert_units(tables=parameters, connection=dest_conn)
 
         # Average values at same location and position
-        average_over_location_time(tables=[p for p in parameters if p not in ["P_TEMPERATURE",  "P_SALINITY"]], cursor=dest_cursor)
+        __average_over_location_time(tables=[p for p in parameters if p not in ["P_TEMPERATURE",  "P_SALINITY"]], cursor=dest_cursor)
         logging.info(f"Number of samples (all averaged): {get_num_samples(conn=dest_conn, table_names=parameters)}")
 
         # Convert temperature to potential temperature
-        t_to_pot_t(connection=dest_conn)
+        __t_to_pot_t(connection=dest_conn)
         logging.info(f"Number of samples (t-->pot_t): {get_num_samples(conn=dest_conn, table_names=parameters)}")
     else:
         logging.info(f"Database already exists at {dest_db_path}. Skipping database preparation.")
