@@ -4,7 +4,7 @@ import logging
 import gsw
 import numpy as np
 import pandas as pd
-from utils.database import get_table_as_df, get_num_samples
+from utils.database import get_table_as_df, get_num_samples, does_table_exist, get_columns
 from preparation.units import UnitsConverter
 from preparation.gridding import grid_data
 from preparation.imputation import impute_data
@@ -12,7 +12,7 @@ from preparation.imputation import impute_data
 
 def __copy_and_filter_tables(conn, tables, quality_flags, source_db_path):
     """
-    Copy tables from a database to another database and filter for quality.
+    Copy tables from a database to another database (if it does not yet exist there) and filter for quality.
 
     Args:
         conn (sqlite3.connection): Connection to database.
@@ -20,7 +20,7 @@ def __copy_and_filter_tables(conn, tables, quality_flags, source_db_path):
         quality_flags (list<list<str>>): Specification for PQF1, PQF2 and SQF used to filter the data for quality.
         source_db_path (str): Cursor of the source database.
     """
-    logging.info("Copy and filter tables...")
+    logging.info("  Copying tables to new database...")
 
     # Create cursor to database
     cursor = conn.cursor()
@@ -29,21 +29,22 @@ def __copy_and_filter_tables(conn, tables, quality_flags, source_db_path):
     cursor.execute(f"ATTACH DATABASE '{source_db_path}' AS source_db")
 
     # Copy tables to destination database (ensure that temperature and salinity are always copied)
-    logging.info("Copying tables to new database...")
     for parameter in list(set(tables + ["P_TEMPERATURE", "P_SALINITY"])):
-        query = f"CREATE TABLE IF NOT EXISTS {parameter} AS " \
-                f"SELECT * FROM source_db.{parameter} " \
-                f"WHERE {' and '.join([x[0] + x[1] for x in quality_flags])};"
-        logging.info("  " + query)
-        print(query)
-        cursor.execute(query)
+        # Check if table already exists in new database
+        if does_table_exist(conn=conn, table_name=parameter, table_type="table"):
+            logging.info(f"    Table {parameter} already exists. Skipping copy...")
+        else:
+            query = f"CREATE TABLE IF NOT EXISTS {parameter} AS " \
+                    f"SELECT * FROM source_db.{parameter} " \
+                    f"WHERE {' and '.join([x[0] + x[1] for x in quality_flags])};"
+            logging.info("    " + query)
+            cursor.execute(query)
 
     # Copy STATION, CRUISE, DATABASE_TABLES for location and time information and info on tables
     for table in ["STATION", "CRUISE", "DATABASE_TABLES"]:
         query = f"CREATE TABLE IF NOT EXISTS {table} AS " \
                 f"SELECT * FROM source_db.{table};"
-        logging.info("  " + query)
-        print(query)
+        logging.info("    " + query)
         cursor.execute(query)
 
     # Close cursor
@@ -52,40 +53,44 @@ def __copy_and_filter_tables(conn, tables, quality_flags, source_db_path):
 
 def __add_location_time(conn, tables):
     """
-    Add latitude, longitude and dateandtime information to tables.
+    Add latitude, longitude and dateandtime information to tables (if they do not have these columns yet).
 
     Args:
         conn (sqlite3.connection): Connection to database.
         tables (list<str>): Names of tables to add the location and time information to.
     """
-    logging.info("Adding location and time...")
+    logging.info("  Adding location and time...")
 
     # Add location/time info to each table separately
     for table in tables:
-        print(table)
-        logging.info("  " + table)
+        logging.info("    " + table)
 
         # Create cursor object
         cursor = conn.cursor()
 
-        # Join query
-        query = f"CREATE TABLE IF NOT EXISTS {table}_llt AS " \
-                f"SELECT p.*, STATION.LATITUDE, STATION.LONGITUDE, STATION.DATEANDTIME " \
-                f"FROM {table} AS p " \
-                f"LEFT JOIN STATION ON p.ID=STATION.ID; "
-        logging.info("  " + query)
-        cursor.execute(query)
+        # Check if table contains lat/lon/time information
+        columns = get_columns(conn=conn, table=table)
+        if len([x for x in columns if x in ["LATITUDE", "LONGITUDE", "DATEANDTIME"]]) > 0:
+            logging.info(f"    Table {table} already contains latitude, longitude and/or time information. Skipping.")
+        else:
+            # Join query
+            query = f"CREATE TABLE IF NOT EXISTS {table}_llt AS " \
+                    f"SELECT p.*, STATION.LATITUDE, STATION.LONGITUDE, STATION.DATEANDTIME " \
+                    f"FROM {table} AS p " \
+                    f"LEFT JOIN STATION ON p.ID=STATION.ID; "
+            logging.info("    " + query)
+            cursor.execute(query)
 
-        # Drop initial tables
-        query = f"DROP TABLE {table};"
-        cursor.execute(query)
+            # Drop initial tables
+            query = f"DROP TABLE {table};"
+            cursor.execute(query)
 
-        # Rename new tables
-        query = f"ALTER TABLE {table}_llt RENAME TO {table};"
-        cursor.execute(query)
+            # Rename new tables
+            query = f"ALTER TABLE {table}_llt RENAME TO {table};"
+            cursor.execute(query)
 
     # Clean database
-    logging.info("  Vacuum database...")
+    logging.info("    Vacuum database...")
     query = "VACUUM;"
     cursor.execute(query)
     cursor.close()
@@ -99,23 +104,21 @@ def __average_over_location_time(conn, tables):
         conn (sqlite3.connection): Connection to database.
         tables (list<str>): Names of tables to process.
     """
-    logging.info("Averaging over location and time...")
+    logging.info("  Averaging over location and time...")
     for table in tables:
-        logging.info("  " + table)
+        logging.info("    " + table)
 
         # Create cursor object
         cursor = conn.cursor()
 
         # Get column names
-        query = f"PRAGMA table_info({table});"
-        ex = cursor.execute(query)
-        cols = [x[1] for x in ex.fetchall() if x[1] != "VAL"]
+        cols = [x for x in get_columns(conn=conn, table=table) if x != "VAL"]
 
         # Grouping
         query = f"CREATE TABLE {table}_avg AS " \
                 f"SELECT AVG(VAL) AS VAL, {', '.join(cols)} " \
                 f"FROM {table} GROUP BY LATITUDE, LONGITUDE, LEV_M, DATEANDTIME;"
-        logging.info("  " + query)
+        logging.info("    " + query)
         cursor.execute(query)
 
         # Drop initial tables
@@ -127,7 +130,7 @@ def __average_over_location_time(conn, tables):
         cursor.execute(query)
 
     # Clean database
-    logging.info("  Vacuum database...")
+    logging.info("    Vacuum database...")
     query = "VACUUM;"
     cursor.execute(query)
     cursor.close()
@@ -141,45 +144,49 @@ def __add_temperature_salinity(conn, tables):
         conn (sqlite3.connection): Connection to database.
         tables (list<str>): Tables to add temperature and salinity to.
     """
-    logging.info("Averaging over location and time...")
+    logging.info("  Averaging over location and time...")
 
     for table in tables:
-        print(table)
-        logging.info("  " + table)
+        logging.info("    " + table)
 
         # Create cursor object
         cursor = conn.cursor()
 
-        # Adding temperature and salinity information as required
-        if table == "P_TEMPERATURE":
-            ts_select_statement = ", s.VAL as salinity"
-            ts_join_statement = f"LEFT JOIN P_SALINITY s ON (p.LEV_M=s.LEV_M and p.ID=s.ID)"
-        elif table == "P_SALINITY":
-            ts_select_statement = ", t.VAL as temperature"
-            ts_join_statement = f"LEFT JOIN P_TEMPERATURE t ON (p.LEV_M=t.LEV_M and p.ID=t.ID)"
+        # Check if temperature/salinity information is already given
+        columns = get_columns(conn=conn, table=table)
+        if len([x for x in columns if x in ["temperature", "salinity"]]) > 0:
+            logging.info(f"    Table {table} already contains temperature and/or salinity information. Skipping.")
         else:
-            ts_select_statement = ", t.VAL as temperature, s.VAL as salinity"
-            ts_join_statement = f"LEFT JOIN P_TEMPERATURE t ON (p.LEV_M=t.LEV_M and p.ID=t.ID) " \
-                                f"LEFT JOIN P_SALINITY s ON (p.LEV_M=s.LEV_M and p.ID=s.ID)"
+            # Adding temperature and salinity information as required
+            if table == "P_TEMPERATURE":
+                ts_select_statement = ", s.VAL as salinity"
+                ts_join_statement = f"LEFT JOIN P_SALINITY s ON (p.LEV_M=s.LEV_M and p.ID=s.ID)"
+            elif table == "P_SALINITY":
+                ts_select_statement = ", t.VAL as temperature"
+                ts_join_statement = f"LEFT JOIN P_TEMPERATURE t ON (p.LEV_M=t.LEV_M and p.ID=t.ID)"
+            else:
+                ts_select_statement = ", t.VAL as temperature, s.VAL as salinity"
+                ts_join_statement = f"LEFT JOIN P_TEMPERATURE t ON (p.LEV_M=t.LEV_M and p.ID=t.ID) " \
+                                    f"LEFT JOIN P_SALINITY s ON (p.LEV_M=s.LEV_M and p.ID=s.ID)"
 
-        # Add temperature and salinity information
-        query = f"CREATE TABLE {table}_ts AS " \
-                f"SELECT p.* {ts_select_statement} " \
-                f"FROM {table} p " \
-                f"{ts_join_statement};"
-        logging.info("  " + query)
-        cursor.execute(query)
+            # Add temperature and salinity information
+            query = f"CREATE TABLE {table}_ts AS " \
+                    f"SELECT p.* {ts_select_statement} " \
+                    f"FROM {table} p " \
+                    f"{ts_join_statement};"
+            logging.info("    " + query)
+            cursor.execute(query)
 
-        # Drop initial tables
-        query = f"DROP TABLE {table};"
-        cursor.execute(query)
+            # Drop initial tables
+            query = f"DROP TABLE {table};"
+            cursor.execute(query)
 
-        # Rename new tables
-        query = f"ALTER TABLE {table}_ts RENAME TO {table};"
-        cursor.execute(query)
+            # Rename new tables
+            query = f"ALTER TABLE {table}_ts RENAME TO {table};"
+            cursor.execute(query)
 
     # Clean database
-    logging.info("  Vacuum database...")
+    logging.info("    Vacuum database...")
     query = "VACUUM;"
     cursor.execute(query)
     cursor.close()
@@ -193,7 +200,7 @@ def __convert_units(conn, tables):
         conn (sqlite3.connection): Connection to database.
         tables (list<str>): Names of tables to add the location and time information to.
     """
-    logging.info("Converting units...")
+    logging.info("  Converting units...")
 
     # Define converter and convert
     df_default_units = get_table_as_df(conn, "DATABASE_TABLES")
@@ -216,7 +223,7 @@ def __t_to_pot_t(conn):
     Args:
         conn (sqlite3.connection): Connection to database.
     """
-    logging.info("Convert temperature to potential temperature...")
+    logging.info("  Convert temperature to potential temperature...")
     t_table = "P_TEMPERATURE"
     cursor = conn.cursor()
 
@@ -235,7 +242,7 @@ def __t_to_pot_t(conn):
     count_new = len(df_t)
 
     # Output how many values were not converted and thus dropped
-    logging.info(f"  Conversion not possible for {count_old - count_new} values.")
+    logging.info(f"    Conversion not possible for {count_old - count_new} values.")
 
     # Write potential temperature table to database
     df_t.to_sql("temp", conn, if_exists="fail")
@@ -262,7 +269,7 @@ def __t_to_pot_t(conn):
     cursor.execute(q)
 
     # Clear database
-    logging.info("  Vacuum database...")
+    logging.info("    Vacuum database...")
     q = "VACUUM;"
     cursor.execute(q)
 
@@ -270,7 +277,8 @@ def __t_to_pot_t(conn):
     cursor.close()
 
 
-def prepare_database(parameters, quality_flags, source_db_path="../../data/comfort.sqlite",
+def prepare_database(parameters, quality_flags, temperature_to_potential=True,
+                     source_db_path="../../data/comfort.sqlite",
                      dest_db_path="output/custom.db"):
     """
     Store data of interest in new database and prepare it for further processing. Operations are executed in the
@@ -279,61 +287,61 @@ def prepare_database(parameters, quality_flags, source_db_path="../../data/comfo
     Args:
         parameters (list<str>): Parameter tables of interest.
         quality_flags (list<str>): List of quality flags to filter for.
+        temperature_to_potential (boolean): Whether to convert temperature to potential temperature.
         source_db_path (str): Path to source database.
         dest_db_path (str): Path to destination database.
     """
+    logging.info("Start database preparation...")
 
-    # Only prepare the database if the new database does not exist yet
-    if not os.path.exists(dest_db_path):
-        # Define quality flags to filter for
-        if not quality_flags:
-            quality_flags = [["pqf1", ">0"], ["pqf2", ">2"], ["sqf", ">=-1"]]
+    # Define quality flags to filter for
+    if not quality_flags:
+        quality_flags = [["pqf1", ">0"], ["pqf2", ">2"], ["sqf", ">=-1"]]
 
-        # Connect to COMFORT database
-        source_conn = sqlite3.connect(source_db_path)
-        logging.info(
-            f"Number of samples (original tables): {get_num_samples(conn=source_conn, table_names=parameters)}")
+    # Connect to COMFORT database
+    source_conn = sqlite3.connect(source_db_path)
+    logging.info(
+        f"Number of samples (original tables): {get_num_samples(conn=source_conn, table_names=parameters)}")
 
-        # Connect to a new database (or create it if it doesn't exist)
-        dest_conn = sqlite3.connect(dest_db_path)
+    # Connect to a new database (or create it if it doesn't exist)
+    dest_conn = sqlite3.connect(dest_db_path)
 
-        # Copy desired tables to new database and filter for quality
-        __copy_and_filter_tables(tables=parameters, quality_flags=quality_flags,
-                                 conn=dest_conn, source_db_path=source_db_path)
-        logging.info(f"Number of samples (filtered tables): {get_num_samples(conn=dest_conn, table_names=parameters)}")
+    # Copy desired tables to new database and filter for quality
+    __copy_and_filter_tables(tables=parameters, quality_flags=quality_flags,
+                             conn=dest_conn, source_db_path=source_db_path)
+    logging.info(f"Number of samples (filtered tables): {get_num_samples(conn=dest_conn, table_names=parameters)}")
 
-        # Add latitude, longitude, dateandtime information to temperature and salinity tables
-        __add_location_time(tables=["P_TEMPERATURE", "P_SALINITY"], conn=dest_conn)
+    # Add latitude, longitude, dateandtime information to temperature and salinity tables
+    __add_location_time(tables=["P_TEMPERATURE", "P_SALINITY"], conn=dest_conn)
 
-        # Average temperature and salinity values at the same time and location
-        __average_over_location_time(tables=["P_TEMPERATURE,  P_SALINITY"], conn=dest_conn)
-        logging.info(
-            f"Number of samples (TS averaged over time and location): {get_num_samples(conn=dest_conn, table_names=parameters)}")
+    # Average temperature and salinity values at the same time and location
+    __average_over_location_time(tables=["P_TEMPERATURE",  "P_SALINITY"], conn=dest_conn)
+    logging.info(
+        f"Number of samples (TS averaged over time and location): "
+        f"{get_num_samples(conn=dest_conn, table_names=parameters)}")
 
-        # Add temperature and salinity information to all tables
-        __add_temperature_salinity(tables=parameters, conn=dest_conn)
+    # Add temperature and salinity information to all tables
+    __add_temperature_salinity(tables=parameters, conn=dest_conn)
 
-        # Add latitude, longitude, dateandtime information to other tables
-        __add_location_time(tables=[p for p in parameters if p not in ["P_TEMPERATURE,  P_SALINITY"]],
-                            conn=dest_conn)
+    # Add latitude, longitude, dateandtime information to other tables
+    __add_location_time(tables=[p for p in parameters if p not in ["P_TEMPERATURE",  "P_SALINITY"]],
+                        conn=dest_conn)
 
-        # Unit conversions
-        __convert_units(tables=parameters, conn=dest_conn)
+    # Unit conversions
+    __convert_units(tables=parameters, conn=dest_conn)
 
-        # Average values at same location and position
-        __average_over_location_time(tables=[p for p in parameters if p not in ["P_TEMPERATURE", "P_SALINITY"]],
-                                     conn=dest_conn)
-        logging.info(f"Number of samples (all averaged): {get_num_samples(conn=dest_conn, table_names=parameters)}")
+    # Average values at same location and position
+    __average_over_location_time(tables=[p for p in parameters if p not in ["P_TEMPERATURE", "P_SALINITY"]],
+                                 conn=dest_conn)
+    logging.info(f"Number of samples (all averaged): {get_num_samples(conn=dest_conn, table_names=parameters)}")
 
-        # Convert temperature to potential temperature
+    # Convert temperature to potential temperature
+    if temperature_to_potential:
         __t_to_pot_t(conn=dest_conn)
         logging.info(f"Number of samples (t-->pot_t): {get_num_samples(conn=dest_conn, table_names=parameters)}")
 
-        # Close connections
-        source_conn.close()
-        dest_conn.close()
-    else:
-        logging.info(f"Database already exists at {dest_db_path}. Skipping database preparation.")
+    # Close connections
+    source_conn.close()
+    dest_conn.close()
 
 
 def grid_and_impute_data(db_path, grid_config, bathymetry_path, parameters, output_dir="output/"):
