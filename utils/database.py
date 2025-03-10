@@ -139,3 +139,24 @@ def get_names_of_all_parameter_tables(conn, like_pattern="P|_%", escape_char="|"
     param_table_names = [entry[0] for entry in result]
 
     return param_table_names
+
+
+def get_columns(conn, table):
+    """
+    Get column names of a table in a database.
+
+    Args:
+        conn (sqlite3.Connection): Connection to the sqlite3 database.
+        table (str): Name of table.
+    """
+    # Create cursor and get table info
+    cursor = conn.cursor()
+    cursor.execute(f"PRAGMA table_info({table});")
+
+    # Fetch column names
+    columns = [row[1] for row in cursor.fetchall()]
+
+    # Close cursor
+    cursor.close()
+
+    return columns
