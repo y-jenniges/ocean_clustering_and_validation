@@ -5,25 +5,19 @@ Code accompanying the paper ***Jenniges et al.: Systematic definition and valida
 <br>
 
 **File explanations**
-
-main.py
-
-config.py
+- main.py
+- config.py
 
 
 <br>
 
 **Required data files** to run the code
-
-COMFORT.sqlite
-
-bathymetry.nc
+- COMFORT.sqlite
+- bathymetry.nc
 
 
 <br>
 
 For an **interactive dashboard visualisation** of the final clustering, refer to:
-
-Code: https://github.com/y-jenniges/ocean_cluster_dashboard
-
-Dashboard: https://ocean-cluster-dashboard.onrender.com
+- Code: https://github.com/y-jenniges/ocean_cluster_dashboard
+- Dashboard: https://ocean-cluster-dashboard.onrender.com
