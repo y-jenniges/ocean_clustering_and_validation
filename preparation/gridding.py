@@ -668,7 +668,7 @@ def grid_data(conn, grid_config, bathymetry_path, parameters, output_dir):
 
     # Logging
     logging.info(f"Created wide table named {wide_table_name}. \nMapped parameter tables: {mapped}")
-    logging.info(f"The amount of missing values per parameter is: {num_nulls}")
+    logging.info(f"The amount of missing values per parameter is: \n{num_nulls}")
 
     # Store as CSV
     wide_table_path = output_dir + "wide_table.csv"
