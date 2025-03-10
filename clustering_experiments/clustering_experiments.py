@@ -8,6 +8,17 @@ from pathlib import Path
 
 
 def run_clustering_experiments(data, preprocessing_steps, clustering_algorithms, n_iterations, scores, output_dir):
+    """
+    Perform clustering experiments by building Pipelines with the given models.
+
+    Args:
+        data (pandas.DataFrame): Data to run the experiments on.
+        preprocessing_steps (dict): Name and model(s) to run for preprocessing.
+        clustering_algorithms (dict): Name and model(s) to run for clustering.
+        n_iterations (int): How often each clustering experiment with each hyperparameter combination will be repeated.
+        scores (dict): Name and model to run for internal validation.
+        output_dir (str): Directory where to store results.
+    """
     logging.info("Starting clustering experiments...")
     # Counter for temp storage of results
     counter = 0
