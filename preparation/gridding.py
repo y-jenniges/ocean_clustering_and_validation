@@ -479,11 +479,11 @@ class Grid:
 
         return df
 
-    def map_tables(self, connection, param_tables=None, using_database=True, include_z_max=True):
+    def map_tables(self, conn, param_tables=None, using_database=True, include_z_max=True):
         """
         Mapping given parameter tables to grid.
         Args:
-            connection (sqlite3.connection): Connection to database.
+            conn (sqlite3.connection): Connection to database.
             param_tables (list<str>): Parameter table names to map to the grid.
             using_database (boolean): Whether to store mapped tables in the database or return them in-memory.
             include_z_max (boolean): Whether to include depth values at the end of the interval.
@@ -492,23 +492,23 @@ class Grid:
             using_database) or list of mapped tables (if using_database=False).
         """
         logging.info("Mapping tables to grid...")
-        connection.create_aggregate('median', 1, sqlite_util.Median)
-        connection.create_aggregate('std', 1, sqlite_util.Std)
+        conn.create_aggregate('median', 1, sqlite_util.Median)
+        conn.create_aggregate('std', 1, sqlite_util.Std)
 
         if not param_tables:
-            param_tables = get_names_of_all_parameter_tables(connection)
+            param_tables = get_names_of_all_parameter_tables(conn)
 
         mapped_tables = []  # Offline computations: contains grids; online computations: contains table names
         for table in param_tables:
             answer = "n"  # Whether to replace table in database if existing
             # If mapped table already exists in database, only continue computations if they should be replaced
-            if using_database and does_table_exist(conn=connection, table_name=f"{table}_{self.grid_id}",
+            if using_database and does_table_exist(conn=conn, table_name=f"{table}_{self.grid_id}",
                                                    table_type="table"):
                 grid_name = f"grid_{self.grid_id}"
                 # Let user decide whether to replace existing table
                 input_valid = False
                 while not input_valid:
-                    print("Replace table? y/n")
+                    print(f"Replace table {table}? y/n")
                     answer = input()
                     if answer == "y" or answer == "n":
                         input_valid = True
@@ -529,7 +529,7 @@ class Grid:
                 f"DATEANDTIME >= '{self.time_min}' AND DATEANDTIME <= '{self.time_max}' " \
                 f";"
             logging.info(q)
-            cur = connection.execute(q)
+            cur = conn.execute(q)
             df = pd.DataFrame(cur.fetchall(), columns=[x[0] for x in cur.description])
 
             # Map latitude
@@ -589,8 +589,8 @@ class Grid:
             if using_database:
                 grid_name = f"grid_{self.grid_id}"
                 # If grid was not yet added to database, add it
-                if not does_table_exist(connection, grid_name, "table"):
-                    self.grid.to_sql(grid_name, connection, if_exists="replace", index=True, index_label="idx")
+                if not does_table_exist(conn, grid_name, "table"):
+                    self.grid.to_sql(grid_name, conn, if_exists="replace", index=True, index_label="idx")
                     print("Warning in gridding.map_tables: Grid was added to the database but not to the grid_info "
                           "table as no GridManager was used.")
 
@@ -598,10 +598,10 @@ class Grid:
                 if answer == "y":
                     # Drop existing table
                     q = f"DROP TABLE {table}_{self.grid_id};"
-                    connection.execute(q)
+                    conn.execute(q)
 
                 # Write mapped table to database
-                df_grouped.to_sql(f"temp_{table}_{self.grid_id}", connection, if_exists="replace", index=False)
+                df_grouped.to_sql(f"temp_{table}_{self.grid_id}", conn, if_exists="replace", index=False)
 
                 # Adding the grid index to the table
                 q = f"CREATE TABLE {table}_{self.grid_id} AS " \
@@ -609,11 +609,11 @@ class Grid:
                     f"t.LATITUDE, t.LONGITUDE, t.LEV_M, t.DATEANDTIME, t.VAL as {table}, t.median, t.std, t.count " \
                     f"FROM temp_{table}_{self.grid_id} AS t LEFT JOIN grid_{self.grid_id} AS g " \
                     f"USING(LATITUDE, LONGITUDE, LEV_M, DATEANDTIME);"
-                connection.execute(q)
+                conn.execute(q)
 
                 # Drop temporary mapped table
                 q = f"DROP TABLE temp_{table}_{self.grid_id};"
-                connection.execute(q)
+                conn.execute(q)
 
                 # Add grid name to return-list
                 mapped_tables.append(f"{table}_{self.grid_id}")
@@ -819,9 +819,9 @@ def grid_data(conn, grid_config, bathymetry_path, parameters, output_dir):
 
     # Map parameters to grid and create wide table
     logging.info("Map parameters to grid...")
-    mapped = grid.map_tables(connection=conn, param_tables=parameters, using_database=True, include_z_max=True)
+    mapped = grid.map_tables(conn=conn, param_tables=parameters, using_database=True, include_z_max=True)
     wide_table_name = create_wide_table_online(connection=conn, grid_id=grid.grid_id, param_tables=param_tables)
-    df_wide = load_wide_table(connection=conn, wide_table_name=wide_table_name, dropping_land_cells=True)
+    df_wide = load_wide_table(conn=conn, wide_table_name=wide_table_name, dropping_land_cells=True)
     num_nulls = get_missing_value_info_offline(df_wide)
 
     # Logging
