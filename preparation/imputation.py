@@ -17,10 +17,11 @@ def impute_data(csv_path, parameters, drop_columns, output_dir):
         imputed_table_path (str): Path to imputed CSV table file.
     """
     logging.info(f"Imputing data for {parameters}...")
+    
     # Load CSV data
     df = pd.read_csv(csv_path)
 
-    # Drop desired columns
+    # Drop non-desired columns
     if drop_columns:
         df = df.drop(columns=drop_columns, axis=1)
 
