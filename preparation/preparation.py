@@ -144,7 +144,7 @@ def __add_temperature_salinity(conn, tables):
         conn (sqlite3.connection): Connection to database.
         tables (list<str>): Tables to add temperature and salinity to.
     """
-    logging.info("  Averaging over location and time...")
+    logging.info("  Adding temperature/salinity information...")
 
     for table in tables:
         logging.info("    " + table)
