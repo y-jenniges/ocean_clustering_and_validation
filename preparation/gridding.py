@@ -671,6 +671,7 @@ def grid_data(conn, grid_config, bathymetry_path, parameters, output_dir):
     logging.info(f"The amount of missing values per parameter is: \n{num_nulls}")
 
     # Store as CSV
+    logging.info("Writing wide table to CSV...")
     wide_table_path = output_dir + "wide_table.csv"
     df_wide.to_csv(wide_table_path, index=False)
     logging.info(f"Stored gridded, wide table as {wide_table_path}")
