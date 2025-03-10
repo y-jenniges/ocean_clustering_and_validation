@@ -31,7 +31,7 @@ def run_clustering_experiments(data, preprocessing_steps, clustering_algorithms,
     for i in range(n_iterations):
         # Iterate over preprocessing and clustering methods
         for preproc_name, preproc_steps in preprocessing_steps.items():
-            logging.info(preproc_name, preproc_steps)
+            logging.info(f"{preproc_name}: {preproc_steps}")
 
             for cluster_name, (ClusterAlgo, param_grid) in clustering_algorithms.items():
                 # Generate all hyperparameter combinations
