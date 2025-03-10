@@ -31,19 +31,19 @@ class UnitsConverter:
 
         for table in tables:
             print(f"UnitsConverter: Converting {table}")
-            # get target unit id
+            # Get target unit id
             target_unit_id = int(
                 self.df_default_units[self.df_default_units["NAME_TABLE"] == table]["UNITS_ID_DEFAULT"])
 
-            # get all distinct unit ids
+            # Get all distinct unit ids
             query = f"select distinct units_id from {table};"
             res = cur.execute(query).fetchall()
             unit_ids = [x[0] for x in res]
 
-            # define the new table name
+            # Define the new table name
             new_table_name = f"converted_{table}"
 
-            # if there is only one unit and it is already the default one, skip conversion
+            # If there is only one unit and it is already the default one, skip conversion
             if len(unit_ids) != 1 or unit_ids[0] != target_unit_id:
                 print("    UnitsConverter: One or more units need to be converted. ")
                 # load table
@@ -53,17 +53,17 @@ class UnitsConverter:
                 df = pd.DataFrame(ex.fetchall(), columns=[x[0] for x in cur.description])
                 old_len = len(df)
 
-                # convert units
+                # Convert units
                 df_new = pd.DataFrame(columns=df.columns)
                 for unit in unit_ids:
                     df_converted = self.conversion_matrix[unit, target_unit_id](df[df["UNITS_ID"] == unit],
                                                                                 table, use_density)
                     df_new = pd.concat([df_new, df_converted])
 
-                # drop rows that have VAL==NULL (i.e. value could not be converted)
+                # Drop rows that have VAL==NULL (i.e. value could not be converted)
                 df_new = df_new.dropna(subset=["VAL"])
 
-                # store the new table
+                # Store the new table
                 if_exists = "fail"
                 if override_old_tables:
                     if_exists = "replace"
@@ -73,7 +73,7 @@ class UnitsConverter:
                 new_len = len(df_new)
                 print(f"    UnitsConverter: 0-Check: len(old_table) - len(new_table) = {old_len - new_len}")
 
-            # save table name
+            # Save table name
             new_tables[table] = new_table_name
 
         return new_tables
@@ -116,7 +116,7 @@ class ConversionFormulas:
             print(f"Error: Molar mass is not defined for {param_table_name}.")
             return
 
-    # conversion functions
+    # Conversion functions
     def identical_units(self, df, param_name, use_density=False):
         print("    No conversion necessary since units are identical.")
         return df
@@ -200,8 +200,8 @@ class ConversionFormulas:
             temp["salinity_absolute"] = gsw.SA_from_SP(temp["salinity"], temp["LEV_DBAR"] - 10.1325,
                                                        temp["LONGITUDE"], temp["LATITUDE"])
 
-            # compute in-situ density (if it could not be computed due to missing temp/sal, use fixed factor)
-            # function returns [kg/m^3], we divide by 1000 to get [kg/l]
+            # Compute in-situ density (if it could not be computed due to missing temp/sal, use fixed factor)
+            # Function returns [kg/m^3], we divide by 1000 to get [kg/l]
             temp["density"] = gsw.density.rho_t_exact(temp["salinity_absolute"], temp["temperature"],
                                                       temp["LEV_DBAR"] - 10.1325)/1000
             temp["density"].fillna(1.025, inplace=True)
