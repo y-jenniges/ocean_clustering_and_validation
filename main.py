@@ -5,10 +5,9 @@ import logging
 from umap import UMAP
 from clustering_experiments.preprocess import preprocess
 from clustering_experiments.clustering_experiments import run_clustering_experiments
-from preparation.preparation import load_data, prepare_database
+from preparation.preparation import grid_and_impute_data, prepare_database
 from validation.validation import run_validation
 from uncertainty_experiments.uncertainty_experiments import run_uncertainty_experiments
-
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.cluster import KMeans, DBSCAN, AgglomerativeClustering, OPTICS
 
@@ -24,15 +23,11 @@ logging.basicConfig(level=logging.DEBUG,  # Log level: DEBUG, INFO, WARNING, ERR
 # Prepare data in database and load it
 parameters = ["P_TEMPERATURE", "P_SALINITY", "P_OXYGEN", "P_NITRATE", "P_SILICATE", "P_PHOSPHATE"]
 prepare_database(parameters=parameters, quality_flags=None, source_db_path="../../data/comfort.sqlite", dest_db_path="output/custom.db")
-df = load_data(parameters=parameters)
-
-# Apply MinMaxScaling to all parameters
-scaler = MinMaxScaler().fit(df[parameters])
-df[parameters] = scaler.transform(df[parameters])
+df = grid_and_impute_data(db_path="output/custom.db", parameters=parameters, output_dir=output_dir)
 
 # Perform clustering experiments
 n_iterations = 10
-preprocessings = {"": None, "umap": UMAP()}
+preprocessings = {"": [MinMaxScaler], "umap": [MinMaxScaler, UMAP]}
 algorithms_and_hyps = {"kmeans": (KMeans, {"n_clusters": list(range(2, 16)) + [20, 30, 40, 50, 60], "n_init": ["auto"]}),
                        "ward": (AgglomerativeClustering, {"n_clusters": range(2, 31), "distance_threshold": [None], "linkage": ["ward"]}),
                        "dbscan": (DBSCAN, {"eps": np.linspace(0.01, 0.2, 60), "min_samples": range(2, 12)}),
