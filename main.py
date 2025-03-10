@@ -16,7 +16,8 @@ if __name__ == "main":
     prepare_database(parameters=config.parameters, quality_flags=config.quality_flags,
                      source_db_path=config.source_db_path, dest_db_path=config.dest_db_path)
     df = grid_and_impute_data(db_path=config.dest_db_path, grid_config=config.grid_config,
-                              bathymetry_path=config.bathymetry_path, parameters=config.parameters,
+                              bathymetry_path=config.bathymetry_path,
+                              parameters=config.parameters + ["LATITUDE", "LONGITUDE", "LEV_M"],
                               output_dir=config.output_dir)
 
     # Perform clustering experiments (and internal validation via scores)
