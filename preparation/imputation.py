@@ -5,12 +5,16 @@ from sklearn.impute import KNNImputer
 
 
 def impute_data(csv_path, parameters, drop_columns, output_dir):
-    """ Impute missing values of specified parameters by first scaling them to [0, 1] and then imputing using KNN.
-    :param csv_path: Path to data CSV table
-    :param parameters: Column names of parameters to impute
-    :param drop_columns: Columns to drop from dataframe
-    :param output_dir: Directory where to save imputed table
-    :return: Path to imputed table
+    """
+    Impute missing values of specified parameters by first scaling them to [0, 1] and then imputing using KNN.
+
+    Args:
+        csv_path (str): Path to data CSV table.
+        parameters (list<str>): Column names of parameters to impute.
+        drop_columns (list<str>): Columns to drop from dataframe.
+        output_dir (str): Directory where to save imputed table.
+    Returns:
+        imputed_table_path (str): Path to imputed CSV table file.
     """
     logging.info(f"Imputing data for {parameters}...")
     # Load CSV data
