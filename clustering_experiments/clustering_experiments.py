@@ -30,49 +30,53 @@ def run_clustering_experiments(data, preprocessing_steps, clustering_algorithms,
 
                 # Iterate over hyperparameter combinations
                 for hyp_params in hyp_param_combinations:
-                    # Reset results
-                    results = []
+                    # Check if result file already exists
+                    result_file_path = f"{output_dir}temp/clustering_experiments_{cluster_name}_{counter}.csv"
+                    if not Path(result_file_path).is_file():
+                        # Reset results
+                        results = []
 
-                    # Measure time to run the pipeline
-                    start_time = time()
+                        # Measure time to run the pipeline
+                        start_time = time()
 
-                    # Construct pipeline dynamically
-                    steps = [(f"{preproc_name}_step_{idx}", step() if callable(step) else step) for idx, step in
-                             enumerate(preproc_steps)]  # Preprocessing steps
-                    steps.append((cluster_name, ClusterAlgo(**hyp_params)))  # Clustering step
-                    pipeline = Pipeline(steps)
-                    logging.info(f"  {steps}")
+                        # Construct pipeline dynamically
+                        steps = [(f"{preproc_name}_step_{idx}", step() if callable(step) else step) for idx, step in
+                                 enumerate(preproc_steps)]  # Preprocessing steps
+                        steps.append((cluster_name, ClusterAlgo(**hyp_params)))  # Clustering step
+                        pipeline = Pipeline(steps)
+                        logging.info(f"  {steps}")
 
-                    # Fit and predict
-                    labels = pipeline.fit_predict(data)
+                        # Fit and predict
+                        labels = pipeline.fit_predict(data)
 
-                    end_time = time()
+                        end_time = time()
 
-                    # Apply internal validation (scores)
-                    start_time_scores = time()
-                    nclusters = len(np.unique(labels))
-                    score_dict = {}
-                    for score_name, score_model in scores.items():
-                        if nclusters > 1:
-                            score = score_model(data, labels)
-                        else:
-                            score = np.nan
-                        score_dict[score_name] = score
-                    end_time_scores = time()
+                        # Apply internal validation (scores)
+                        start_time_scores = time()
+                        nclusters = len(np.unique(labels))
+                        score_dict = {}
+                        for score_name, score_model in scores.items():
+                            if nclusters > 1:
+                                score = score_model(data, labels)
+                            else:
+                                score = np.nan
+                            score_dict[score_name] = score
+                        end_time_scores = time()
 
-                    # Store results
-                    results.append({**{
-                        "iteration": i,
-                        "preprocessing": preproc_name,
-                        "clustering": cluster_name,
-                        "hyp_params": hyp_params,
-                        "clustering_time": end_time - start_time,
-                        "score_time": end_time_scores - start_time_scores
-                    }, **score_dict})
+                        # Store results
+                        results.append({**{
+                            "iteration": i,
+                            "preprocessing": preproc_name,
+                            "clustering": cluster_name,
+                            "hyp_params": hyp_params,
+                            "clustering_time": end_time - start_time,
+                            "score_time": end_time_scores - start_time_scores
+                        }, **score_dict})
 
-                    # Convert results to a DataFrame and store it
-                    pd.DataFrame(results).to_csv(
-                        f"{output_dir}temp/clustering_experiments_{cluster_name}_{counter}.csv", index=False)
+                        # Convert results to a DataFrame and store it
+                        pd.DataFrame(results).to_csv(result_file_path, index=False)
+                    else:
+                        logging.info(f"Result file for {result_file_path} already exists. Skipping this experiment.")
                     counter = counter + 1
 
     # Combine and store results per clustering algorithm
