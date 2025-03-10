@@ -1,12 +1,18 @@
+import logging
 import pandas as pd
 
 
 def get_table_as_df(conn, table_name, columns=None):
-    """ Get a table from the database as pandas dataframe.
-    :param table_name (str): Name of the table to fetch.
-    :param conn (sqlite3.Connection): Connection to the database that stores the table.
-    :param columns (list<str>): List of columns to query. If None, all columns will be queried. Default is None.
-    :return df (pandas.DataFrame): Dataframe containing the table information.
+    """
+    Get a table from the database as pandas dataframe.
+
+    Args:
+        table_name (str): Name of the table to fetch.
+        conn (sqlite3.Connection): Connection to the database that stores the table.
+        columns (list<str>): List of columns to query. If None, all columns will be queried. Default is None.
+
+    Returns:
+        df (pandas.DataFrame): Dataframe containing the table information.
     """
     col_selection = "*"
     if columns:
@@ -23,10 +29,14 @@ def get_table_as_df(conn, table_name, columns=None):
 
 
 def get_num_samples(conn, table_names):
-    """ Get the number of samples contained in the given table.
-    :param conn (sqlite3.Connection): Connection to the database.
-    :param table_names (list<str>): List of table names to count.
-    :return: num_samples (int): Summed number of sample in the given tables.
+    """
+    Get the number of samples contained in the given table.
+
+    Args:
+        conn (sqlite3.Connection): Connection to the database.
+        table_names (list<str>): List of table names to count.
+    Returns:
+        num_samples (int): Summed number of sample in the given tables.
     """
     cur = conn.cursor()
 
@@ -52,13 +62,13 @@ def does_table_exist(conn, table_name, table_type="table"):
         does_table_exist (bool): If the table/view exists in the database.
     """
     cur = conn.cursor()
-    query = f"select name from sqlite_master where type='{table_type}' AND name='{table_name}';"
+    query = f"SELECT name FROM sqlite_master WHERE type='{table_type}' AND name='{table_name}';"
     result = cur.execute(query).fetchall()
 
     return True if result else False
 
 
-def remove_tables_like(conn, like_pattern="E|_%", escape_char="|", table_type="view", tables_except=None):
+def remove_tables_like(conn, like_pattern="E|_%", escape_char="|", table_type="table", tables_except=None):
     """
     Removes views/tables whose name match the given like_pattern.
 
@@ -71,18 +81,20 @@ def remove_tables_like(conn, like_pattern="E|_%", escape_char="|", table_type="v
         tables_except (list<str>): Remove all tables matching the like pattern except the ones specified in this list.
         Default is None.
     """
-    # get views/tables to remove
+    # Get views/tables to remove
     table_names = get_names_of_all_parameter_tables(conn, like_pattern, escape_char, table_type=table_type,
                                                     include_digits=True)
     cur = conn.cursor()
 
+    # Keep tables that were excepted from removal
     if tables_except:
         for te in tables_except:
             if te in table_names:
                 table_names.remove(te)
 
+    # Remove tables from database
     for vtn in table_names:
-        query = f"drop {table_type} {vtn};"
+        query = f"DROP {table_type} {vtn};"
         print(f"Structure.remove_tables_like: {query}")
         cur.execute(query)
 
@@ -104,22 +116,24 @@ def get_names_of_all_parameter_tables(conn, like_pattern="P|_%", escape_char="|"
     """
     digits_filter = ""
     if not include_digits:
-        digits_filter = "and name not glob '*_[0-9]*'"
+        digits_filter = "AND name NOT glob '*_[0-9]*'"
 
+    # Assemble query
     if like_pattern and escape_char:
-        query = f"select name from sqlite_master " \
-                f"where type='{table_type}' and name like '{like_pattern}' escape '{escape_char}' " \
+        query = f"SELECT name FROM sqlite_master " \
+                f"WHERE type='{table_type}' AND name LIKE '{like_pattern}' ESCAPE '{escape_char}' " \
                 f"{digits_filter};"
     elif like_pattern:
-        query = f"select name from sqlite_master " \
-                f"where type='{table_type}' and name like '{like_pattern}' " \
+        query = f"SELECT name FROM sqlite_master " \
+                f"WHERE type='{table_type}' AND name LIKE '{like_pattern}' " \
                 f"{digits_filter};"
     else:
-        query = f"select name from sqlite_master " \
-                f"where type='{table_type}' " \
+        query = f"SELECT name FROM sqlite_master " \
+                f"Where type='{table_type}' " \
                 f"{digits_filter};"
 
-    print(f"Information: {query}")
+    # Execute query
+    logging.info(f"Information: {query}")
     ex = conn.cursor().execute(query)
     result = ex.fetchall()
     param_table_names = [entry[0] for entry in result]
