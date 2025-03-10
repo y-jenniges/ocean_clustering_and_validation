@@ -25,6 +25,10 @@ def impute_data(csv_path, parameters, drop_columns, output_dir):
     if drop_columns:
         df = df.drop(columns=drop_columns, axis=1)
 
+    # Add geographic information to support imputation (ensure that column names exist in df)
+    parameters = parameters + ["LATITUDE", "LONGITUDE", "LEV_M", "DATEANDTIME"]
+    parameters = [p for p in parameters if p in df.columns]
+
     # Scale parameters
     scaler = MinMaxScaler().fit(df[parameters])
     scaled = scaler.transform(df[parameters])
@@ -34,15 +38,16 @@ def impute_data(csv_path, parameters, drop_columns, output_dir):
     imputed = imputer.transform(scaled)
 
     # Undo scaling
-    df_unscaled = pd.DataFrame(scaler.inverse_transform(imputed), columns=df[parameters].columns).reset_index(drop=True)
+    df_unscaled = pd.DataFrame(scaler.inverse_transform(imputed), columns=parameters).reset_index(drop=True)
 
     # Merge columns from original df and imputed data
-    df_unscaled = pd.concat([df[[x for x in df.columns if x not in parameters]].reset_index(drop=True), df_unscaled],
-                            axis=1)
+    # df_unscaled = pd.concat([df[[x for x in df.columns if x not in parameters]].reset_index(drop=True), df_unscaled], axis=1)
+    df_final = df.copy()
+    df_final[parameters] = df_unscaled[parameters]
 
     # Store imputed table
     imputed_table_path = output_dir + "wide_table_knn.csv"
-    df_unscaled.to_csv(imputed_table_path, index=False)
+    df_final.to_csv(imputed_table_path, index=False)
     logging.info(f"Stored imputed wide table as {imputed_table_path}")
 
     return imputed_table_path
