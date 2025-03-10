@@ -305,33 +305,12 @@ def prepare_database(parameters, quality_flags, source_db_path="../../data/comfo
         logging.info(f"Database already exists at {dest_db_path}. Skipping database preparation.")
 
 
-def grid_and_impute_data(db_path, parameters, output_dir="output/"):
+def grid_and_impute_data(db_path, grid_config, bathymetry_path, parameters, output_dir="output/"):
     # Connect to database
     conn = sqlite3.connect(db_path)
 
-    # Map parameters to a grid
-    depth_levels = [0, 50, 100, 200, 300, 400, 500, 1000, 1500, 2000, 3000, 4000, 5000]
-    grid_config = {
-        "param_tables": ["P_TEMPERATURE", "P_SALINITY", "P_OXYGEN", "P_NITRATE", "P_SILICATE", "P_PHOSPHATE"],
-        "lat_min": 0,
-        "lat_max": 70,
-        "dlat": 1,
-        "lon_min": -77,
-        "lon_max": 30,
-        "dlon": 1,
-        "z_min": None,
-        "z_max": None,
-        "dz": None,
-        "z_array": np.array(depth_levels),
-        "time_min": "1772-01-01 00:00:00",
-        "time_max": "2020-07-08 04:45:00",
-        "mode": "Y",
-        "selection": None,
-        "dtime": 300,
-        "note": "Northern Atlantic, all times, 13 depth steps, 6 params"
-    }
-    wide_table_path = grid_data(conn=conn, grid_config=grid_config,
-                                bathymetry_path="../../data/bathymetry/gebco_2022_sub_ice_topo/GEBCO_2022_sub_ice_topo.nc",
+    # Map parameters to grid
+    wide_table_path = grid_data(conn=conn, grid_config=grid_config, bathymetry_path=bathymetry_path,
                                 parameters=parameters, output_dir=output_dir)
 
     # Impute missing values
