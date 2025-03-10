@@ -12,6 +12,7 @@ def impute_data(csv_path, parameters, drop_columns, output_dir):
     :param output_dir: Directory where to save imputed table
     :return: Path to imputed table
     """
+    logging.info(f"Imputing data for {parameters}...")
     # Load CSV data
     df = pd.read_csv(csv_path)
 
