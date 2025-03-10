@@ -18,9 +18,11 @@ def __copy_and_filter_tables(tables, quality_flags, connection, source_db_path):
     :param source_db_path: Cursor of the source database.
     """
     logging.info("Copy and filter tables...")
+    # Create cursor to database
+    cursor = connection.cursor()
 
     # Attach the source database to the destination database
-    dest_cursor.execute(f"ATTACH DATABASE '{source_db_path}' AS source_db")
+    cursor.execute(f"ATTACH DATABASE '{source_db_path}' AS source_db")
 
     # Copy tables to destination database (ensure that temperature and salinity are always copied)
     logging.info("Copying tables to new database...")
@@ -30,7 +32,7 @@ def __copy_and_filter_tables(tables, quality_flags, connection, source_db_path):
                 f"WHERE {' and '.join([x[0] + x[1] for x in quality_flags])};"
         logging.info("  " + query)
         print(query)
-        dest_cursor.execute(query)
+        cursor.execute(query)
 
     # Copy STATION, CRUISE, DATABASE_TABLES for location and time information and info on tables
     for table in ["STATION", "CRUISE", "DATABASE_TABLES"]:
@@ -38,7 +40,7 @@ def __copy_and_filter_tables(tables, quality_flags, connection, source_db_path):
                 f"SELECT * FROM source_db.{table};"
         logging.info("  " + query)
         print(query)
-        dest_cursor.execute(query)
+        cursor.execute(query)
 
 
 def __add_location_time(tables, connection):
