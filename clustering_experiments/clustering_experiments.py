@@ -20,13 +20,13 @@ def run_clustering_experiments(data, preprocessing_steps, clustering_algorithms,
     for i in range(n_iterations):
         # Iterate over preprocessing and clustering methods
         for preproc_name, preproc_steps in preprocessing_steps.items():
-            print(preproc_name, preproc_steps)
+            logging.info(preproc_name, preproc_steps)
 
             for cluster_name, (ClusterAlgo, param_grid) in clustering_algorithms.items():
                 # Generate all hyperparameter combinations
                 hyp_param_combinations = [dict(zip(param_grid.keys(), v)) for v in product(*param_grid.values())]
 
-                print("  " + cluster_name)
+                logging.info("  " + cluster_name)
 
                 # Iterate over hyperparameter combinations
                 for hyp_params in hyp_param_combinations:
@@ -41,7 +41,7 @@ def run_clustering_experiments(data, preprocessing_steps, clustering_algorithms,
                              enumerate(preproc_steps)]  # Preprocessing steps
                     steps.append((cluster_name, ClusterAlgo(**hyp_params)))  # Clustering step
                     pipeline = Pipeline(steps)
-                    print(f"  {steps}")
+                    logging.info(f"  {steps}")
 
                     # Fit and predict
                     labels = pipeline.fit_predict(data)
