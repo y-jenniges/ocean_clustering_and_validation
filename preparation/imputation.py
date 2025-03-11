@@ -34,16 +34,18 @@ def impute_data(csv_path, parameters, drop_columns, output_dir):
     scaled = scaler.transform(df[parameters])
 
     # Impute missing values using KNN
-    imputer = KNNImputer(n_neighbors=5, weights="distance").fit(scaled)
+    imputer = KNNImputer(n_neighbors=5, weights="distance", add_indicator=True).fit(scaled)
     imputed = imputer.transform(scaled)
 
     # Undo scaling
-    df_unscaled = pd.DataFrame(scaler.inverse_transform(imputed), columns=parameters).reset_index(drop=True)
+    df_unscaled = pd.DataFrame(scaler.inverse_transform(imputed[:, :scaled.shape[1]]),
+                               columns=parameters).reset_index(drop=True)
 
     # Merge columns from original df and imputed data
-    # df_unscaled = pd.concat([df[[x for x in df.columns if x not in parameters]].reset_index(drop=True), df_unscaled], axis=1)
     df_final = df.copy()
     df_final[parameters] = df_unscaled[parameters]
+    df_final[[x + "_imputed" for x in parameters]] = pd.DataFrame(imputed[:, scaled.shape[1]:],
+                                                                  columns=[x + "_imputed" for x in parameters])
 
     # Store imputed table
     imputed_table_path = output_dir + "wide_table_knn.csv"
