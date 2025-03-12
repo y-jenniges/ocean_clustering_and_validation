@@ -783,7 +783,7 @@ def grid_data(conn, grid_config, bathymetry_path, parameters, output_dir):
     logging.info("Create grid...")
 
     # Grid configuration
-    param_tables = grid_config["param_tables"]
+    parameters = grid_config["parameters"]
     lat_min = grid_config["lat_min"]
     lat_max = grid_config["lat_max"]
     dlat = grid_config["dlat"]
@@ -820,7 +820,7 @@ def grid_data(conn, grid_config, bathymetry_path, parameters, output_dir):
     # Map parameters to grid and create wide table
     logging.info("Map parameters to grid...")
     mapped = grid.map_tables(conn=conn, param_tables=parameters, using_database=True, include_z_max=True)
-    wide_table_name = create_wide_table_online(connection=conn, grid_id=grid.grid_id, param_tables=param_tables)
+    wide_table_name = create_wide_table_online(connection=conn, grid_id=grid.grid_id, param_tables=parameters)
     df_wide = load_wide_table(conn=conn, wide_table_name=wide_table_name, dropping_land_cells=True)
     num_nulls = get_missing_value_info_offline(df_wide)
 
