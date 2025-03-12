@@ -312,27 +312,32 @@ def prepare_database(parameters, quality_flags, temperature_to_potential=True,
 
     # Add latitude, longitude, dateandtime information to temperature and salinity tables
     __add_location_time(tables=["P_TEMPERATURE", "P_SALINITY"], conn=dest_conn)
+    logging.info(f"Number of samples (TS with space/time): {get_num_samples(conn=dest_conn, table_names=parameters)}")
 
     # Average temperature and salinity values at the same time and location
     __average_over_location_time(tables=["P_TEMPERATURE",  "P_SALINITY"], conn=dest_conn)
     logging.info(
-        f"Number of samples (TS averaged over time and location): "
+        f"Number of samples (TS averaged over space/time): "
         f"{get_num_samples(conn=dest_conn, table_names=parameters)}")
 
     # Add temperature and salinity information to all tables
     __add_temperature_salinity(tables=parameters, conn=dest_conn)
+    logging.info(f"Number of samples (params with TS): {get_num_samples(conn=dest_conn, table_names=parameters)}")
 
     # Add latitude, longitude, dateandtime information to other tables
     __add_location_time(tables=[p for p in parameters if p not in ["P_TEMPERATURE",  "P_SALINITY"]],
                         conn=dest_conn)
+    logging.info(f"Number of samples (params with space/time): {get_num_samples(conn=dest_conn, table_names=parameters)}")
 
     # Unit conversions
     __convert_units(tables=parameters, conn=dest_conn)
+    logging.info(f"Number of samples (units converted): {get_num_samples(conn=dest_conn, table_names=parameters)}")
 
     # Average values at same location and position
     __average_over_location_time(tables=[p for p in parameters if p not in ["P_TEMPERATURE", "P_SALINITY"]],
                                  conn=dest_conn)
-    logging.info(f"Number of samples (all averaged): {get_num_samples(conn=dest_conn, table_names=parameters)}")
+    logging.info(f"Number of samples (params averaged over space/time): "
+                 f"{get_num_samples(conn=dest_conn, table_names=parameters)}")
 
     # Convert temperature to potential temperature
     if temperature_to_potential:
