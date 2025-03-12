@@ -3,12 +3,15 @@ import logging
 import pandas as pd
 from clustering_experiments.clustering_experiments import run_clustering_experiments
 from preparation.preparation import grid_and_impute_data, prepare_database
+from utils.database import get_num_samples
 from uncertainty_experiments.uncertainty_experiments import run_uncertainty_experiments
 import config
 
 
 if __name__ == "__main__":
     prepare_data = True
+    run_clusterings = False
+
     # Configure logging (store in logging file and in console)
     logging.basicConfig(level=logging.DEBUG,
                         handlers=[logging.FileHandler(config.output_dir + "logs.log"),
@@ -26,12 +29,13 @@ if __name__ == "__main__":
         df = pd.read_csv(config.output_dir + "/wide_table_knn.csv")
 
     # Perform clustering experiments (and internal validation via scores)
-    df_clusterings = run_clustering_experiments(data=df[config.parameters],
-                                                preprocessing_steps=config.preprocessings,
-                                                clustering_algorithms=config.algorithms_and_hyps,
-                                                n_iterations=config.n_iterations,
-                                                scores=config.scores,
-                                                output_dir=config.output_dir)
+    if run_clusterings:
+        df_clusterings = run_clustering_experiments(data=df[config.parameters],
+                                                    preprocessing_steps=config.preprocessings,
+                                                    clustering_algorithms=config.algorithms_and_hyps,
+                                                    n_iterations=config.n_iterations,
+                                                    scores=config.scores,
+                                                    output_dir=config.output_dir)
 
     # Run uncertainty experiments
     # run_uncertainty_experiments(output_directory=output_dir)
