@@ -40,8 +40,8 @@ def __copy_and_filter_tables(conn, tables, quality_flags, source_db_path):
             logging.info("    " + query)
             cursor.execute(query)
 
-    # Copy STATION, CRUISE, DATABASE_TABLES for location and time information and info on tables
-    for table in ["STATION", "CRUISE", "DATABASE_TABLES"]:
+    # Copy STATION, CRUISE, DATABASE_TABLES, UNITS for location and time information and info on tables and units
+    for table in ["STATION", "CRUISE", "DATABASE_TABLES", "UNITS"]:
         query = f"CREATE TABLE IF NOT EXISTS {table} AS " \
                 f"SELECT * FROM source_db.{table};"
         logging.info("    " + query)
