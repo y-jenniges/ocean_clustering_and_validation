@@ -191,7 +191,7 @@ class ConversionFormulas:
         logging.info("    Percent -> micromolPerKilogram: Treat with caution. Formula for oxygen saturation is only "
                      "valid for 0<T<40^C and 0<S<40.")
         temp = df.copy()
-        oxygen_concentration = temp["VAL"] * oxygen_saturation(df["salinity"], df["temperature"]) * 100
+        oxygen_concentration = temp["VAL"] * oxygen_saturation(temp["salinity"], temp["temperature"]) / 100
         temp = temp.assign(VAL=oxygen_concentration, UNITS_ID=3)
         return temp
 
