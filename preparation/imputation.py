@@ -1,5 +1,6 @@
 import pandas as pd
 import logging
+import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.impute import KNNImputer
 
@@ -26,12 +27,11 @@ def impute_data(csv_path, parameters, drop_columns, output_dir):
         df = df.drop(columns=drop_columns, axis=1)
 
     # Add geographic information to support imputation (ensure that column names exist in df)
-    parameters = parameters + ["LATITUDE", "LONGITUDE", "LEV_M", "DATEANDTIME"]
-    parameters = [p for p in parameters if p in df.columns]
+    space_time_cols = [c for c in ["LATITUDE", "LONGITUDE", "LEV_M", "DATEANDTIME"] if c in df.columns]
 
     # Scale parameters
-    scaler = MinMaxScaler().fit(df[parameters])
-    scaled = scaler.transform(df[parameters])
+    scaler = MinMaxScaler().fit(df[parameters + space_time_cols])
+    scaled = scaler.transform(df[parameters + space_time_cols])
 
     # Impute missing values using KNN
     imputer = KNNImputer(n_neighbors=5, weights="distance", add_indicator=True).fit(scaled)
@@ -39,17 +39,15 @@ def impute_data(csv_path, parameters, drop_columns, output_dir):
 
     # Undo scaling
     df_unscaled = pd.DataFrame(scaler.inverse_transform(imputed[:, :scaled.shape[1]]),
-                               columns=parameters).reset_index(drop=True)
+                               columns=parameters + space_time_cols).reset_index(drop=True)
 
-    # Merge columns from original df and imputed data
-    df_final = df.copy()
-    df_final[parameters] = df_unscaled[parameters]
-    df_final[[x + "_imputed" for x in parameters]] = pd.DataFrame(imputed[:, scaled.shape[1]:],
-                                                                  columns=[x + "_imputed" for x in parameters])
+    # Add imputation information and columns from original df
+    df_unscaled["imputed"] = np.round(imputed[:, scaled.shape[1]:].sum(axis=1)/len(parameters)*100, 2)
+    df_unscaled[[x for x in df.columns if x not in df_unscaled.columns]] = df[[x for x in df.columns if x not in df_unscaled.columns]]
 
     # Store imputed table
     imputed_table_path = output_dir + "wide_table_knn.csv"
-    df_final.to_csv(imputed_table_path, index=False)
+    df_unscaled.to_csv(imputed_table_path, index=False)
     logging.info(f"Stored imputed wide table as {imputed_table_path}")
 
     return imputed_table_path
