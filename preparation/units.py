@@ -23,20 +23,20 @@ class UnitsConverter:
         self.df_units = units.sort_values("ID")
 
         self.conversion_matrix = ConversionFormulas(df_units=self.df_units).conversion_matrix
-        print("Initialized units converter")
+        logging.info("  Initialized units converter")
 
     def convert_units(self, tables, use_density=False, override_old_tables=False):
         new_tables = {}
         cur = self.connection.cursor()
 
         for table in tables:
-            print(f"UnitsConverter: Converting {table}")
+            logging.info(f"  UnitsConverter: Converting {table}")
             # Get target unit id
             target_unit_id = int(
                 self.df_default_units[self.df_default_units["NAME_TABLE"] == table]["UNITS_ID_DEFAULT"])
 
             # Get all distinct unit ids
-            query = f"select distinct units_id from {table};"
+            query = f"SELECT DISTINCT units_id FROM {table};"
             res = cur.execute(query).fetchall()
             unit_ids = [x[0] for x in res]
 
@@ -45,9 +45,9 @@ class UnitsConverter:
 
             # If there is only one unit and it is already the default one, skip conversion
             if len(unit_ids) != 1 or unit_ids[0] != target_unit_id:
-                print("    UnitsConverter: One or more units need to be converted. ")
-                # load table
-                q = f"select * from {table};"
+                logging.info("    UnitsConverter: One or more units need to be converted. ")
+                # Load table
+                q = f"SELECT * FROM {table};"
                 cur = self.connection.cursor()
                 ex = cur.execute(q)
                 df = pd.DataFrame(ex.fetchall(), columns=[x[0] for x in cur.description])
@@ -58,7 +58,11 @@ class UnitsConverter:
                 for unit in unit_ids:
                     df_converted = self.conversion_matrix[unit, target_unit_id](df[df["UNITS_ID"] == unit],
                                                                                 table, use_density)
-                    df_new = pd.concat([df_new, df_converted])
+
+                    # if df_new.empty:
+                    #     df_new = df_converted.copy()
+                    # else:
+                    df_new = pd.concat([df_new, df_converted], ignore_index=True)
 
                 # Drop rows that have VAL==NULL (i.e. value could not be converted)
                 df_new = df_new.dropna(subset=["VAL"])
@@ -71,7 +75,7 @@ class UnitsConverter:
 
                 df_new.to_sql(new_table_name, self.connection, if_exists=if_exists, index=False, chunksize=None)
                 new_len = len(df_new)
-                print(f"    UnitsConverter: 0-Check: len(old_table) - len(new_table) = {old_len - new_len}")
+                logging.info(f"    UnitsConverter: 0-Check: len(old_table) - len(new_table) = {old_len - new_len}")
 
             # Save table name
             new_tables[table] = new_table_name
@@ -113,64 +117,64 @@ class ConversionFormulas:
         if param_table_name in list(self.molar_masses["NAME_TABLE"]):
             return float(self.molar_masses[self.molar_masses["NAME_TABLE"] == param_table_name]["MOLAR_MASS"])
         else:
-            print(f"Error: Molar mass is not defined for {param_table_name}.")
+            logging.info(f"    Error: Molar mass is not defined for {param_table_name}.")
             return
 
     # Conversion functions
     def identical_units(self, df, param_name, use_density=False):
-        print("    No conversion necessary since units are identical.")
+        logging.info("    No conversion necessary since units are identical.")
         return df
 
     def no_conversion(self, df, param_name, use_density=False):
-        print(f"    Warning: Conversion is not possible or not implemented yet!")
+        logging.info(f"    Warning: Conversion is not possible or not implemented yet!")
         return df
 
     def milliEquivalentPerLiter_micromolPerKilogram(self, df, param_name, use_density=False):
-        print("    milliEquivalentPerLiter -> micromolPerKilogram")
+        logging.info("    milliEquivalentPerLiter -> micromolPerKilogram")
         temp = df.copy()
         lab_dens = self.compute_lab_density(df, param_name, use_density)
         temp = temp.assign(VAL=temp["VAL"] * 1000 / lab_dens, UNITS_ID=3)
         return temp
 
     def microgramPerLiter_microgramPerKilogram(self, df, param_name, use_density=False):
-        print("    microgramPerLiter -> microgramPerKilogram")
+        logging.info("    microgramPerLiter -> microgramPerKilogram")
         temp = df.copy()
         lab_dens = self.compute_lab_density(df, param_name, use_density)
         temp = temp.assign(VAL=temp["VAL"] / lab_dens, UNITS_ID=14)
         return temp
 
     def millimolPerLiter_micromolPerKilogram(self, df, param_name, use_density=False):
-        print("    millimolPerLiter -> micromolPerKilogram")
+        logging.info("    millimolPerLiter -> micromolPerKilogram")
         temp = df.copy()
         lab_dens = self.compute_lab_density(df, param_name, use_density)
         temp = temp.assign(VAL=temp["VAL"] * 1000 / lab_dens, UNITS_ID=3)
         return temp
 
     def nanomolPerKilogram_femtomolPerKilogram(self, df, param_name, use_density=False):
-        print("    nanomolPerKilogram -> femtomolPerKilogram")
+        logging.info("    nanomolPerKilogram -> femtomolPerKilogram")
         temp = df.copy()
         temp = temp.assign(VAL=temp["VAL"] * 1000000, UNITS_ID=19)
         return temp
 
     def milliliterPerLiter_micromolPerKilogram(self, df, param_name, use_density=False):
-        print("    milliliterPerLiter -> micromolPerKilogram")
+        logging.info("    milliliterPerLiter -> micromolPerKilogram")
         temp = df.copy()
         lab_dens = self.compute_lab_density(df, param_name, use_density)
         x = 44.661
-        print("    Use this conversion with caution, it is only valid for oxygen.")
+        logging.info("    Use this conversion with caution, it is only valid for oxygen.")
         temp = temp.assign(VAL=temp["VAL"] * x / lab_dens, UNITS_ID=3)
         return temp
 
     def microgramPerKilogram_micromolPerKilogram(self, df, param_name, use_density=False):
         # molar mass in g/mol
-        print("    microgramPerKilogram -> micromolPerKilogram")
+        logging.info("    microgramPerKilogram -> micromolPerKilogram")
         temp = df.copy()
         molar_mass = self.get_molar_mass(param_name)
         temp = temp.assign(VAL=temp["VAL"] / molar_mass, UNITS_ID=3)
         return temp
 
     def microgramPerLiter_micromolPerKilogram(self, df, param_name, use_density=False):
-        print("    microgramPerLiter -> micromolPerKilogram")
+        logging.info("    microgramPerLiter -> micromolPerKilogram")
         temp = df.copy()
         lab_dens = self.compute_lab_density(df, param_name, use_density)
         molar_mass = self.get_molar_mass(param_name)
@@ -178,14 +182,14 @@ class ConversionFormulas:
         return temp
 
     def microgramAtomPerKilogram_micromolPerKilogram(self, df, param_name, use_density=False):
-        print("    microgramAtomPerKilogram -> micromolPerKilogram")
+        logging.info("    microgramAtomPerKilogram -> micromolPerKilogram")
         temp = df.copy()
         temp = temp.assign(UNITS_ID=3)
         return temp
 
     def percent_micromolPerKilogram(self, df, param_name, use_density=False):
-        print("    Percent -> micromolPerKilogram: Treat with caution. Formula for oxygen saturation is only valid for "
-              "0<T<40^C and 0<S<40.")
+        logging.info("    Percent -> micromolPerKilogram: Treat with caution. Formula for oxygen saturation is only "
+                     "valid for 0<T<40^C and 0<S<40.")
         temp = df.copy()
         oxygen_concentration = temp["VAL"] * oxygen_saturation(df["salinity"], df["temperature"]) * 100
         temp = temp.assign(VAL=oxygen_concentration, UNITS_ID=3)
@@ -195,7 +199,7 @@ class ConversionFormulas:
         """ Computes density of a parameter or returns a constant factor to convert liters to kilograms in [kg/l]. """
         temp = df.copy()
         if use_density:
-            print("    Computing density...")
+            logging.info("    Computing density...")
             # compute absolute salinity from practical salinity
             temp["salinity_absolute"] = gsw.SA_from_SP(temp["salinity"], temp["LEV_DBAR"] - 10.1325,
                                                        temp["LONGITUDE"], temp["LATITUDE"])
@@ -230,19 +234,19 @@ def oxygen_saturation(salinity, temperature):
 
         if isinstance(temperature, (int, float)):
             if temperature < 0 or temperature > 40:
-                logging.warning("units.oxygen_saturation: Temperature is out of valid range for this function "
+                logging.warning("    units.oxygen_saturation: Temperature is out of valid range for this function "
                                 "(0 < T < 40°C).")
         elif isinstance(temperature, (list, np.ndarray, pd.Series)):
             if (np.array(temperature) < 0).any() or (np.array(temperature) > 40).any():
-                logging.warning("units.oxygen_saturation: Temperature is out of valid range for this function "
+                logging.warning("     units.oxygen_saturation: Temperature is out of valid range for this function "
                                 "(0 < T < 40°C).")
         if isinstance(salinity, (int, float)):
             if salinity < 0 or salinity > 40:
-                logging.warning("units.oxygen_saturation: Salinity is out of valid range for this function "
+                logging.warning("    units.oxygen_saturation: Salinity is out of valid range for this function "
                                 "(0 < S < 40).")
             elif isinstance(salinity, (list, np.ndarray, pd.Series)):
                 if (np.array(salinity) < 0).any() or (np.array(salinity) > 40).any():
-                    logging.warning("units.oxygen_saturation: Salinity is out of valid range for this function "
+                    logging.warning("    units.oxygen_saturation: Salinity is out of valid range for this function "
                                     "(0 < S < 40).")
 
         temperature_kelvin = temperature + 273.15
@@ -251,6 +255,9 @@ def oxygen_saturation(salinity, temperature):
                             + 1.243678 * 10 ** 10 / temperature_kelvin ** 3
                             - 8.621061 * 10 ** 11 / temperature_kelvin ** 4
                             - salinity * (0.020573 - 12.142 / temperature_kelvin + 2363.1 / temperature_kelvin ** 2))
+    else:
+        logging.warning("    units.oxygen_saturation: Cannot compute oxygen saturation since temperature and/or "
+                        "salinity value not given.")
 
     return oxygen_sat
 
@@ -268,7 +275,7 @@ def atg(salinity, temperature, pressure):
     Returns:
         atg (double or numpy array): Adiabatic temperature gradient
     """
-    # constants
+    # Constants
     a0 = 0.000035803
     a1 = 0.0000085258
     a2 = -0.00000006836
@@ -285,7 +292,7 @@ def atg(salinity, temperature, pressure):
     e1 = 1.8676E-14
     e2 = -2.1678E-16
 
-    # computations
+    # Computations
     p = pressure * 10
     atg = a0 + a1 * temperature + a2 * temperature ** 2 + a3 * temperature ** 3 + (b0 + b1 * temperature) * (
                 salinity - 35)
@@ -309,13 +316,13 @@ def compute_theta(salinity, temperature, pressure, reference_pressure=0):
     Returns:
         Theta (double or pandas Series): Potential temperature [°C]
     """
-    # for the computations, convert to numpy arrays
+    # For the computations, convert to numpy arrays
     # (pandas can mess up with the indexes in multiplications and produce NaN values)
     pressure = pressure.to_numpy()
     salinity = salinity.to_numpy()
     temperature = temperature.to_numpy()
 
-    # computations
+    # Computations
     dp = (reference_pressure - pressure) * 10
     theta = dp * atg(salinity, temperature, pressure)
     tt1 = temperature + 0.5 * theta
