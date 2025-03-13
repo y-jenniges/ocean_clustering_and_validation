@@ -8,6 +8,7 @@ import xarray as xr
 import json
 from datetimerange import DateTimeRange
 from dateutil.relativedelta import relativedelta
+
 from utils import sqlite_util
 from utils.database import get_table_as_df, does_table_exist, remove_tables_like, get_names_of_all_parameter_tables
 
@@ -526,8 +527,8 @@ class Grid:
                 f"LATITUDE >= {self.lat_min} AND LATITUDE <= {self.lat_max} AND " \
                 f"LONGITUDE >= {self.lon_min} AND LONGITUDE <= {self.lon_max} AND " \
                 f"LEV_M >= {self.z_min} AND LEV_M {z_eq} {self.z_max} AND " \
-                f"DATEANDTIME >= '{self.time_min}' AND DATEANDTIME <= '{self.time_max}' " \
-                f";"
+                f"DATEANDTIME >= '{self.time_min}' AND DATEANDTIME <= '{self.time_max}' AND " \
+                f"VAL IS NOT NULL;"
             logging.info(q)
             cur = conn.execute(q)
             df = pd.DataFrame(cur.fetchall(), columns=[x[0] for x in cur.description])
@@ -765,6 +766,7 @@ def get_missing_value_info_offline(df_wide):
     else:
         num_nulls["relative"] = num_nulls["absolute"] / num_grid_cells * 100
         num_nulls = num_nulls.sort_values(by="relative")
+    logging.info(f"  Number of NULLs is {num_nulls}")
 
     return num_nulls
 
@@ -783,7 +785,7 @@ def grid_data(conn, grid_config, bathymetry_path, parameters, output_dir):
     logging.info("Create grid...")
 
     # Grid configuration
-    parameters = grid_config["parameters"]
+    # parameters = grid_config["parameters"]
     lat_min = grid_config["lat_min"]
     lat_max = grid_config["lat_max"]
     dlat = grid_config["dlat"]
