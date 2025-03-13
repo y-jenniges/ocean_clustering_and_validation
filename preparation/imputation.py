@@ -42,8 +42,17 @@ def impute_data(csv_path, parameters, drop_columns, output_dir):
                                columns=parameters + space_time_cols).reset_index(drop=True)
 
     # Add imputation information and columns from original df
-    df_unscaled["imputed"] = np.round(imputed[:, scaled.shape[1]:].sum(axis=1)/len(parameters)*100, 2)
-    df_unscaled[[x for x in df.columns if x not in df_unscaled.columns]] = df[[x for x in df.columns if x not in df_unscaled.columns]]
+    df_unscaled["imputed"] = np.round(imputed[:, scaled.shape[1]:].sum(axis=1) / len(parameters) * 100, 2)
+    df_unscaled[[x for x in df.columns if x not in df_unscaled.columns]] = df[
+        [x for x in df.columns if x not in df_unscaled.columns]]
+
+    # Print how many grid cells were partly/entirely imputed
+    all_imputed_cells = np.round(len(df_unscaled[df_unscaled.imputed == 100]) / len(df_unscaled) * 100, 1)
+    partly_imputed_cells = np.round(len(df_unscaled[(df_unscaled.imputed < 100) & (df_unscaled.imputed > 0)]) / len(df_unscaled) * 100, 1)
+    total_missingness = np.round(df_unscaled.imputed.sum()/len(df_unscaled), 1)
+    logging.info(f"Proportion of grid cells that were entirely imputed: {all_imputed_cells}%")
+    logging.info(f"Proportion of grid cells that were partly imputed: {partly_imputed_cells}%")
+    logging.info(f"Proportion total missingness: {total_missingness}%")
 
     # Store imputed table
     imputed_table_path = output_dir + "wide_table_knn.csv"
