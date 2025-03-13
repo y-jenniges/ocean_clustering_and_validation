@@ -3,6 +3,7 @@ from itertools import product
 from time import time
 import numpy as np
 import logging
+import shutil
 from sklearn.pipeline import Pipeline
 from pathlib import Path
 
@@ -20,7 +21,9 @@ def run_clustering_experiments(data, preprocessing_steps, clustering_algorithms,
         output_dir (str): Directory where to store results.
     """
     logging.info("Starting clustering experiments...")
-    # Counter for temp storage of results
+    logging.getLogger('numba').setLevel(logging.WARNING)  # Hide numba debug messages (numba is used in umap-learn)
+
+    # Counter and path for temp storage of results
     counter = 0
 
     # Temporary output directory
@@ -29,20 +32,21 @@ def run_clustering_experiments(data, preprocessing_steps, clustering_algorithms,
 
     # Perform each preprocessing-clustering_hyperparameters combination 10 times
     for i in range(n_iterations):
+        logging.info(f"Iteration {i}")
         # Iterate over preprocessing and clustering methods
         for preproc_name, preproc_steps in preprocessing_steps.items():
-            logging.info(f"{preproc_name}: {preproc_steps}")
+            logging.info(f"  Preprocessing {preproc_name}")
 
             for cluster_name, (ClusterAlgo, param_grid) in clustering_algorithms.items():
                 # Generate all hyperparameter combinations
                 hyp_param_combinations = [dict(zip(param_grid.keys(), v)) for v in product(*param_grid.values())]
 
-                logging.info("  " + cluster_name)
+                logging.info("    " + cluster_name)
 
                 # Iterate over hyperparameter combinations
                 for hyp_params in hyp_param_combinations:
                     # Check if result file already exists
-                    result_file_path = f"{output_dir}temp/clustering_experiments_{cluster_name}_{counter}.csv"
+                    result_file_path = f"{temp_output_dir}/internal_validation_{cluster_name}_{counter}.csv"
                     if not Path(result_file_path).is_file():
                         # Reset results
                         results = []
@@ -55,7 +59,7 @@ def run_clustering_experiments(data, preprocessing_steps, clustering_algorithms,
                                  enumerate(preproc_steps)]  # Preprocessing steps
                         steps.append((cluster_name, ClusterAlgo(**hyp_params)))  # Clustering step
                         pipeline = Pipeline(steps)
-                        logging.info(f"  {steps}")
+                        logging.info(f"      {steps}")
 
                         # Fit and predict
                         labels = pipeline.fit_predict(data)
@@ -79,24 +83,35 @@ def run_clustering_experiments(data, preprocessing_steps, clustering_algorithms,
                             "iteration": i,
                             "preprocessing": preproc_name,
                             "clustering": cluster_name,
-                            "hyp_params": hyp_params,
                             "clustering_time": end_time - start_time,
-                            "score_time": end_time_scores - start_time_scores
-                        }, **score_dict})
+                            "score_time": end_time_scores - start_time_scores,
+                            "clustering_id": counter
+                        }, **hyp_params, **score_dict})
 
-                        # Convert results to a DataFrame and store it
+                        # Convert validation results to a DataFrame and store it
                         pd.DataFrame(results).to_csv(result_file_path, index=False)
+
+                        # Store clustering labels
+                        pd.DataFrame(labels, columns=["label"]).to_csv(f"{temp_output_dir}/external_validation_{cluster_name}_{counter}.csv", index=False)
                     else:
-                        logging.info(f"Result file for {result_file_path} already exists. Skipping this experiment.")
+                        logging.info(f"    Result file for {result_file_path} already exists. Skipping this experiment.")
                     counter = counter + 1
 
-    # Combine and store results per clustering algorithm
+    # Combine and store internal validation results per clustering algorithm
+    logging.info("Combining clustering experiment result files...")
     for cluster_name in clustering_algorithms.keys():
-        files_to_combine = [file for file in Path().glob(f"*_{cluster_name}:*.csv")]
+        files_to_combine = [file for file in Path().glob(f"{temp_output_dir}/internal_validation_{cluster_name}_*.csv")]
         dfs = [pd.read_csv(file) for file in files_to_combine]
         dfs = pd.concat(dfs, ignore_index=True, axis=0)
-        dfs.to_csv(f"{output_dir}internal_validation_{cluster_name}.csv")
+        dfs.to_csv(f"{output_dir}internal_validation_{cluster_name}.csv", index=False)
+
+    # Remove each file
+    for file in temp_output_dir.glob("internal_validation*"):
+        if file.is_file():  # Ensure it's a file, not a directory
+            file.unlink()
 
     # Remove temporary output directory
-    temp_output_dir.rmdir()
+    # if temp_output_dir.exists() and temp_output_dir.is_dir():
+        # shutil.rmtree(temp_output_dir)
+        # shutil.rmtree(f"{temp_output_dir}/internal_validation_*")
     logging.info("Clustering experiments complete.")
