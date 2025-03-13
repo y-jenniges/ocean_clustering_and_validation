@@ -1,8 +1,6 @@
-import os.path
 import sqlite3
 import logging
 import gsw
-import numpy as np
 import pandas as pd
 from utils.database import get_table_as_df, get_num_samples, does_table_exist, get_columns
 from preparation.units import UnitsConverter
@@ -235,14 +233,13 @@ def __t_to_pot_t(conn):
     # Apply conversion and drop values that could not be converted and lead to NaN entries
     df_t["salinity_absolute"] = gsw.SA_from_SP(SP=df_t["salinity"], p=df_t["LEV_DBAR"] - 10.1325,
                                                lon=df_t["LONGITUDE"], lat=df_t["LATITUDE"])
-    df_t["VAL"] = gsw.conversions.pt0_from_t(SA=df_t["salinity_absolute"], t=df_t["VAL"], p=df_t["LEV_DBAR"])
+    df_t["VAL"] = gsw.conversions.pt0_from_t(SA=df_t["salinity_absolute"], t=df_t["conservative_val"],
+                                             p=df_t["LEV_DBAR"])
 
     # Do not drop values (only salinity abs)
     count_old = len(df_t)
-    # df_t.dropna(subset=["VAL"], inplace=True)
     df_t.drop("salinity_absolute", axis="columns", inplace=True)
-    count_new = df_t["VAL"].isna().sum()
-    # count_new = len(df_t)
+    count_new = len(df_t[~df_t["VAL"].isna()])
 
     # Output how many values were not converted and thus dropped
     logging.info(f"    Conversion not possible for {count_old - count_new} values.")
@@ -257,7 +254,7 @@ def __t_to_pot_t(conn):
 
     # Combine original table and temp table (with potential temperature) so that all columns are in the table
     # q = f"CREATE TABLE temp2 AS SELECT temp.pot_temperature AS VAL, {', '.join(cols)} " \
-    q = f"CREATE TABLE temp2 AS SELECT VAL, {', '.join(cols)} " \
+    q = f"CREATE TABLE temp2 AS SELECT temp.VAL, temp.conservative_val, {', '.join(cols)} " \
         f"FROM temp " \
         f"LEFT JOIN {t_table} AS t USING(ID, LEV_M); "
     cursor.execute(q)
