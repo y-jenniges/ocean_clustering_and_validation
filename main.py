@@ -3,8 +3,6 @@ import logging
 import pandas as pd
 from clustering_experiments.clustering_experiments import run_clustering_experiments
 from preparation.preparation import grid_and_impute_data, prepare_database
-from utils.database import get_num_samples
-from uncertainty_experiments.uncertainty_experiments import run_uncertainty_experiments
 import config
 
 
@@ -12,13 +10,13 @@ if __name__ == "__main__":
     prepare_data = True
     run_clusterings = False
 
-    # Configure logging (store in logging file and in console)
-    logging.basicConfig(level=logging.DEBUG,
-                        handlers=[logging.FileHandler(config.output_dir + "logs.log"),
-                                  logging.StreamHandler(stream=sys.stdout)])
-
     # Prepare data in database and load it
     if prepare_data:
+        # Configure logging (store in logging file and in console)
+        logging.basicConfig(level=logging.DEBUG,
+                            handlers=[logging.FileHandler(config.output_dir + "logs_prepare.log"),
+                                      logging.StreamHandler(stream=sys.stdout)])
+
         prepare_database(parameters=config.parameters, quality_flags=config.quality_flags, temperature_to_potential=True,
                          source_db_path=config.source_db_path, dest_db_path=config.dest_db_path)
         df = grid_and_impute_data(db_path=config.dest_db_path, grid_config=config.grid_config,
@@ -30,6 +28,11 @@ if __name__ == "__main__":
 
     # Perform clustering experiments (and internal validation via scores)
     if run_clusterings:
+        # Configure new logging (store in logging file and in console)
+        logging.basicConfig(level=logging.DEBUG,
+                            handlers=[logging.FileHandler(config.output_dir + "logs_clustering.log"),
+                                      logging.StreamHandler(stream=sys.stdout)])
+
         df_clusterings = run_clustering_experiments(data=df[config.parameters],
                                                     preprocessing_steps=config.preprocessings,
                                                     clustering_algorithms=config.algorithms_and_hyps,
