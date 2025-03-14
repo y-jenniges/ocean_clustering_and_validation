@@ -2,14 +2,30 @@ import sys
 import logging
 import pandas as pd
 from time import time
+from pathlib import Path
 from clustering_experiments.clustering_experiments import run_clustering_experiments
 from preparation.preparation import grid_and_impute_data, prepare_database
 import config
+from uncertainty_experiments.uncertainty_experiments import run_uncertainty_experiments
+
+
+def create_output_directories():
+    """ Create all output directories if they do not exist yet. """
+    Path(config.output_dir).mkdir(parents=True, exist_ok=True)
+    Path(config.output_dir_clustering).mkdir(parents=True, exist_ok=True)
+    Path(config.output_dir_plots).mkdir(parents=True, exist_ok=True)
+    Path(config.output_dir_plots_high_res).mkdir(parents=True, exist_ok=True)
+    Path(config.output_dir_uncertainty).mkdir(parents=True, exist_ok=True)
 
 
 if __name__ == "__main__":
     prepare_data = False
     run_clusterings = True
+    run_uncertainties = True
+
+    # Create all output directories
+    logging.info("Creating output directories...")
+    create_output_directories()
 
     # Prepare data in database and load it
     if prepare_data:
@@ -43,10 +59,15 @@ if __name__ == "__main__":
                                                     clustering_algorithms=config.algorithms_and_hyps,
                                                     n_iterations=config.n_iterations,
                                                     scores=config.scores,
-                                                    output_dir=config.output_dir,
                                                     store_labels=True)
         end = time()
         logging.info(f"Running the clustering experiments took {end-start} seconds.")
 
     # Run uncertainty experiments
-    # run_uncertainty_experiments(output_directory=output_dir)
+    if run_uncertainties:
+        # Configure new logging (store in logging file and in console)
+        logging.basicConfig(level=logging.DEBUG,
+                            handlers=[logging.FileHandler(config.output_dir + "logs_uncertainty.log"),
+                                      logging.StreamHandler(stream=sys.stdout)])
+
+        run_uncertainty_experiments(df=df)
