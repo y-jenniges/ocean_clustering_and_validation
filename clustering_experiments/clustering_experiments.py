@@ -7,8 +7,10 @@ import shutil
 from sklearn.pipeline import Pipeline
 from pathlib import Path
 
+import config
 
-def run_clustering_experiments(data, preprocessing_steps, clustering_algorithms, n_iterations, scores, output_dir, store_labels=False):
+
+def run_clustering_experiments(data, preprocessing_steps, clustering_algorithms, n_iterations, scores, store_labels=False):
     """
     Perform clustering experiments by building Pipelines with the given models.
 
@@ -27,10 +29,6 @@ def run_clustering_experiments(data, preprocessing_steps, clustering_algorithms,
     # Counter and path for temp storage of results
     counter = 0
 
-    # Temporary output directory
-    temp_output_dir = Path(output_dir + "temp/")
-    temp_output_dir.mkdir(parents=True, exist_ok=True)  # Ensure output dir exists
-
     # Perform each preprocessing-clustering_hyperparameters combination 10 times
     for i in range(n_iterations):
         logging.info(f"Iteration {i}")
@@ -47,7 +45,7 @@ def run_clustering_experiments(data, preprocessing_steps, clustering_algorithms,
                 # Iterate over hyperparameter combinations
                 for hyp_params in hyp_param_combinations:
                     # Check if result file already exists
-                    result_file_path = f"{temp_output_dir}/internal_validation_{cluster_name}_{counter}.csv"
+                    result_file_path = f"{config.output_dir_clustering}/internal_validation_{cluster_name}_{counter}.csv"
                     if not Path(result_file_path).is_file():
                         # Reset results
                         results = []
@@ -94,8 +92,9 @@ def run_clustering_experiments(data, preprocessing_steps, clustering_algorithms,
 
                         # Store clustering labels
                         if store_labels:
-                            pd.DataFrame(labels, columns=["label"]).to_csv(f"{temp_output_dir}/external_validation_"
-                                                                           f"{cluster_name}_{counter}.csv", index=False)
+                            pd.DataFrame(labels, columns=["label"]).to_csv(f"{config.output_dir_clustering}/"
+                                                                           f"external_validation_{cluster_name}_"
+                                                                           f"{counter}.csv", index=False)
                     else:
                         logging.info(f"    Result file for {result_file_path} already exists. Skipping this "
                                      f"experiment.")
@@ -103,19 +102,18 @@ def run_clustering_experiments(data, preprocessing_steps, clustering_algorithms,
 
     # Combine and store internal validation results per clustering algorithm
     logging.info("Combining clustering experiment result files...")
+    files_to_remove = []
     for cluster_name in clustering_algorithms.keys():
-        files_to_combine = [file for file in Path().glob(f"{temp_output_dir}/internal_validation_{cluster_name}_*.csv")]
+        files_to_combine = [file for file in Path().glob(
+            f"{config.output_dir_clustering}/internal_validation_{cluster_name}_*.csv")]
+        files_to_remove = files_to_remove + files_to_combine
         dfs = [pd.read_csv(file) for file in files_to_combine]
         dfs = pd.concat(dfs, ignore_index=True, axis=0)
-        dfs.to_csv(f"{output_dir}internal_validation_{cluster_name}.csv", index=False)
+        dfs.to_csv(f"{config.output_dir_clustering}internal_validation_{cluster_name}.csv", index=False)
 
-    # Remove each file
-    for file in temp_output_dir.glob("internal_validation*"):
+    # Remove previously combined files
+    for file in files_to_remove:
         if file.is_file():  # Ensure it's a file, not a directory
             file.unlink()
 
-    # Remove temporary output directory
-    # if temp_output_dir.exists() and temp_output_dir.is_dir():
-        # shutil.rmtree(temp_output_dir)
-        # shutil.rmtree(f"{temp_output_dir}/internal_validation_*")
     logging.info("Clustering experiments complete.")
