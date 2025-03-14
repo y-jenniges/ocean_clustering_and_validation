@@ -8,7 +8,7 @@ from sklearn.pipeline import Pipeline
 from pathlib import Path
 
 
-def run_clustering_experiments(data, preprocessing_steps, clustering_algorithms, n_iterations, scores, output_dir):
+def run_clustering_experiments(data, preprocessing_steps, clustering_algorithms, n_iterations, scores, output_dir, store_labels=False):
     """
     Perform clustering experiments by building Pipelines with the given models.
 
@@ -19,6 +19,7 @@ def run_clustering_experiments(data, preprocessing_steps, clustering_algorithms,
         n_iterations (int): How often each clustering experiment with each hyperparameter combination will be repeated.
         scores (dict): Name and model to run for internal validation.
         output_dir (str): Directory where to store results.
+        store_labels (bool): Whether to store clustering labels or not (default is False).
     """
     logging.info("Starting clustering experiments...")
     logging.getLogger('numba').setLevel(logging.WARNING)  # Hide numba debug messages (numba is used in umap-learn)
@@ -92,9 +93,12 @@ def run_clustering_experiments(data, preprocessing_steps, clustering_algorithms,
                         pd.DataFrame(results).to_csv(result_file_path, index=False)
 
                         # Store clustering labels
-                        pd.DataFrame(labels, columns=["label"]).to_csv(f"{temp_output_dir}/external_validation_{cluster_name}_{counter}.csv", index=False)
+                        if store_labels:
+                            pd.DataFrame(labels, columns=["label"]).to_csv(f"{temp_output_dir}/external_validation_"
+                                                                           f"{cluster_name}_{counter}.csv", index=False)
                     else:
-                        logging.info(f"    Result file for {result_file_path} already exists. Skipping this experiment.")
+                        logging.info(f"    Result file for {result_file_path} already exists. Skipping this "
+                                     f"experiment.")
                     counter = counter + 1
 
     # Combine and store internal validation results per clustering algorithm

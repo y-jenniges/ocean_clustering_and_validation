@@ -8,8 +8,8 @@ import config
 
 
 if __name__ == "__main__":
-    prepare_data = True
-    run_clusterings = False
+    prepare_data = False
+    run_clusterings = True
 
     # Prepare data in database and load it
     if prepare_data:
@@ -43,7 +43,8 @@ if __name__ == "__main__":
                                                     clustering_algorithms=config.algorithms_and_hyps,
                                                     n_iterations=config.n_iterations,
                                                     scores=config.scores,
-                                                    output_dir=config.output_dir)
+                                                    output_dir=config.output_dir,
+                                                    store_labels=True)
         end = time()
         logging.info(f"Running the clustering experiments took {end-start} seconds.")
 
