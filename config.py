@@ -5,8 +5,10 @@ from sklearn.cluster import KMeans, DBSCAN, AgglomerativeClustering, OPTICS
 from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
 
 
-# Output directory
+# Output directories
 output_dir = "output/"
+output_dir_plots = "output/plots/"
+output_dir_plots_high_res = "output/plots_high_res/"
 
 # Parameters to impute
 parameters = ["P_TEMPERATURE", "P_SALINITY", "P_OXYGEN", "P_NITRATE", "P_SILICATE", "P_PHOSPHATE"]
@@ -44,6 +46,7 @@ grid_config = {
 bathymetry_path = "../../data/bathymetry/gebco_2022_sub_ice_topo/GEBCO_2022_sub_ice_topo.nc"
 
 # Configuration for clustering experiments
+output_dir_clustering = "output/clustering/"
 n_iterations = 10
 umap_hyps = {"n_neighbors": 20, "min_dist": 0.0, "n_components": 3}
 preprocessings = {"minmax": [MinMaxScaler], "minmax_umap": [MinMaxScaler, UMAP(**umap_hyps)]}
@@ -57,3 +60,7 @@ algorithms_and_hyps = {"kmeans": (KMeans, {"n_clusters": list(range(2, 16)) + [2
 scores = {"silhouette": silhouette_score,
           "davies_bouldin": davies_bouldin_score,
           "calinski_harabasz": calinski_harabasz_score}
+
+# Configuration for uncertainty experiments
+output_dir_uncertainty = "output/uncertainty/"
+n_iterations_uncertainty = 100
