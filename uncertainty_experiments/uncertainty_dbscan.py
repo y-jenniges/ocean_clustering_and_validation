@@ -13,35 +13,48 @@ import hyp_config
 
 
 def run_dbscan_on_umap(df):
+    """ Run UMAP-DBSCAN n times on a given dataframe, where n is taken from config.py. """
     logging.info(f"  Start computing {config.n_iterations_uncertainty} UMAP-DBSCAN cluster sets...")
+
     # Scale selected columns
     scaler = MinMaxScaler().fit(df[config.parameters])
     df_scaled = pd.DataFrame(scaler.transform(df[config.parameters]), columns=config.parameters)
 
+    # Get UMAP components
+    umap_cols = [f"e{i}" for i in range(hyp_config.umap_hyps["n_components"])]
+
     for i in tqdm(range(config.n_iterations_uncertainty)):
         # Compute embedding
-        df_umap = pd.DataFrame(UMAP(**hyp_config.umap_hyps).fit_transform(df_scaled), columns=["e0", "e1", "e2"])
+        df_umap = pd.DataFrame(UMAP(**hyp_config.umap_hyps).fit_transform(df_scaled), columns=umap_cols)
 
         # Compute DBSCAN
         model = DBSCAN(**hyp_config.dbscan_umap_hyps).fit(df_umap)
-        df_umap["label"] = model.labels_
+
+        # Assemble output dataframe
+        df_out = df.copy()
+        df_out[umap_cols] = df_umap[umap_cols]
+        df_out["label"] = model.labels_
 
         # Store results
-        df_umap.to_csv(f"{config.output_dir_uncertainty}/umap_dbscan_{i}.csv", index=False)
+        df_out.to_csv(f"{config.output_dir_uncertainty}/umap_dbscan_{i}.csv", index=False)
 
     logging.info("    Completed UMAP-DBSCAN runs.")
 
 
 def run_dbscan_on_fixed_umap(df):
+    """ Run DBSCAN on a fixed embedding n times on a given dataframe, where n is taken from config.py. """
     logging.info(f"Start computing {config.n_iterations_uncertainty} fixedUMAP-DBSCAN cluster sets...")
 
     # Scale selected columns
     scaler = MinMaxScaler().fit(df[config.parameters])
     df_scaled = pd.DataFrame(scaler.transform(df[config.parameters]), columns=config.parameters)
 
+    # Get UMAP components
+    umap_cols = [f"e{i}" for i in range(hyp_config.umap_hyps["n_components"])]
+
     # Compute one embedding (fixed for all DBSCAN runs)
     logging.info("    Compute embedding...")
-    df_umap = pd.DataFrame(UMAP(**hyp_config.umap_hyps).fit_transform(df_scaled), columns=["e0", "e1", "e2"])
+    df_umap = pd.DataFrame(UMAP(**hyp_config.umap_hyps).fit_transform(df_scaled), columns=umap_cols)
 
     # Compute DBSCAN on UMAP multiple times while shuffling the input data
     logging.info("    Start computing DBSCAN runs on fixed embedding...")
@@ -62,12 +75,14 @@ def run_dbscan_on_fixed_umap(df):
 
 
 def compute_overlap_matrix(a, b):
-    """ Compute overlap matrix of two clusterings a and b, i.e. the number of grid cells each label combination from
+    """ Compute overlap matrix of two cluster sets a and b, i.e. the number of grid cells each label combination from
     a and b have in common. """
-    m = pd.merge(a[["LATITUDE", "LONGITUDE", "LEV_M", "label"]],
-                 b[["LATITUDE", "LONGITUDE", "LEV_M", "label"]],
+
+    merge_columns = ["LATITUDE", "LONGITUDE", "LEV_M"]
+    m = pd.merge(a[merge_columns + ["label"]],
+                 b[merge_columns + ["label"]],
                  how="outer",
-                 on=["LATITUDE", "LONGITUDE", "LEV_M"], suffixes=["_a", "_b"])
+                 on=merge_columns, suffixes=("_a", "_b"))
 
     # Count grid cells for all combinations of labels from a and b
     counts = pd.DataFrame(m[["label_a", "label_b"]].value_counts(dropna=False))
@@ -78,7 +93,8 @@ def compute_overlap_matrix(a, b):
 
 
 def compute_overlap(a, b, overlap_matrix):
-    """ Compute overlap between two clusterings a and b. Also called purity. The measure is asymmetric. """
+    """ Compute overlap between two cluster sets a and b. Also called purity. The measure is asymmetric. Averaging both
+    overlaps yields the symmetric overlap (last return value). """
     N_a = len(a)
     N_b = len(b)
 
@@ -129,12 +145,25 @@ def compute_entropies(a, b, overlap_matrix):
     # Entropy-related measures
     mi = h_a + h_b - h_ab  # Mutual information
     vi = h_a + h_b - 2 * mi  # Variation of information
-    nmi = mi / max(h_a, h_b)  # Normalised mutual information
+
+    # Normalised mutual information
+    if max(h_a, h_b) == 0:
+        nmi = 0
+    else:
+        nmi = mi / max(h_a, h_b)
 
     return mi, vi, nmi
 
 
 def compute_uncertainty_metrics(prefix="fixedUmap_dbscan_", ignore_noise=True):
+    """ Computes uncertainty metrics: F clustering accuracy, normalised mutual information and overlap by comparing
+     existing cluster sets (loaded from files).
+
+     Args:
+         prefix (str): Used to load the data as {config.output_dir_uncertainty}{prefix}uncertainty_metrics.csv and as
+         prefix of the stored output.
+         ignore_noise (bool): Whether to ignore or keep DBSCAN noise.
+    """
     logging.info(f"Compute uncertainty metrics (prefix={prefix})...")
     start = time()
 
@@ -149,6 +178,11 @@ def compute_uncertainty_metrics(prefix="fixedUmap_dbscan_", ignore_noise=True):
                 # Load cluster sets
                 clustering_a = pd.read_csv(f"{config.output_dir_uncertainty}{prefix}{i}.csv")
                 clustering_b = pd.read_csv(f"{config.output_dir_uncertainty}{prefix}{j}.csv")
+
+                # Unify float representation to enable seamless merging
+                merge_columns = ["LATITUDE", "LONGITUDE", "LEV_M"]
+                clustering_a[merge_columns] = clustering_a[merge_columns].round(2)
+                clustering_b[merge_columns] = clustering_b[merge_columns].round(2)
 
                 # Ignore noise cluster
                 if ignore_noise:
@@ -174,16 +208,21 @@ def compute_uncertainty_metrics(prefix="fixedUmap_dbscan_", ignore_noise=True):
     # Store results
     logging.info("  Done. Storing results...")
     df_res = pd.concat(df_res)
-    df_res.to_csv(f"{config.output_dir_uncertainty}{prefix}uncertainty_scores.csv", index=False)
+    df_res.to_csv(f"{config.output_dir_uncertainty}{prefix}uncertainty_metrics.csv", index=False)
 
     end = time()
     logging.info(f"  Computing uncertainty metrics took {end - start} sec.")
 
 
-def plot_uncertaintiy_metrics(prefix="fixedUmap_dbscan_"):
-    # Plot uncertainties
+def plot_uncertainty_metrics(prefix="fixedUmap_dbscan_"):
+    """ Plot uncertainty metrics: F clustering accuracy, normalised mutual information and overlap.
+    Args:
+        prefix (str): Used to load the data as {config.output_dir_uncertainty}{prefix}uncertainty_metrics.csv and as
+        prefix to store the plots
+    """
+    logging.info("Plotting uncertainty metrics...")
     # Load uncertainty metrics
-    df_res = pd.read_csv(f"{config.output_dir_uncertainty}{prefix}uncertainty_scores.csv")
+    df_res = pd.read_csv(f"{config.output_dir_uncertainty}{prefix}uncertainty_metrics.csv")
 
     figsize = (6, 4)
 
@@ -192,14 +231,14 @@ def plot_uncertaintiy_metrics(prefix="fixedUmap_dbscan_"):
     plt.xlabel("F clustering accuracy")
     plt.tight_layout()
     plt.savefig(f"{config.output_dir_plots}{prefix}f_clustering_accuracy.png")
-    plt.show()
+    plt.close()
 
     plt.figure(figsize=figsize)
     sns.histplot(df_res.normalized_mutual_information)
     plt.xlabel("Normalised mutual information")
     plt.tight_layout()
     plt.savefig(f"{config.output_dir_plots}{prefix}normalised_mutual_information.png")
-    plt.show()
+    plt.close()
 
     plt.figure(figsize=figsize)
     sns.histplot(df_res.overlap * 100)
@@ -207,7 +246,7 @@ def plot_uncertaintiy_metrics(prefix="fixedUmap_dbscan_"):
     plt.ticklabel_format(style='plain', axis='x', useOffset=False)
     plt.tight_layout()
     plt.savefig(f"{config.output_dir_plots_high_res}{prefix}overlap.png", dpi=1000)
-    plt.show()
+    plt.close()
 
     logging.info(
         f"  Mean F clustering accuracy is {df_res.f_accuracy.mean() * 100} +- {df_res.f_accuracy.std() * 100} %")
