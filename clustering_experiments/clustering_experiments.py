@@ -95,9 +95,10 @@ def run_clustering_experiments(data, preprocessing_steps, clustering_algorithms,
 
                         # Store clustering labels
                         if store_labels:
-                            pd.DataFrame(labels, columns=["label"]).to_csv(f"{config.output_dir_clustering}/"
-                                                                           f"external_validation_{cluster_name}_"
-                                                                           f"{counter}.csv", index=True)
+                            label_file_path = f"{config.output_dir_clustering}/labels_iteration{i}_"\
+                                              f"{preproc_name}_{cluster_name}_" \
+                                              f"{'_'.join([f'{k}{v}' for k, v in hyp_params.items()])}.csv"
+                            pd.DataFrame(labels, columns=["label"]).to_csv(label_file_path, index=True)
                     else:
                         logging.info(f"    Result file for {result_file_path} already exists. Skipping this "
                                      f"experiment.")
