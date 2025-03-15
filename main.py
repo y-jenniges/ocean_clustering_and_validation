@@ -21,10 +21,10 @@ def create_output_directories():
 if __name__ == "__main__":
     prepare_data = False
     run_clusterings = True
-    run_uncertainties = True
+    run_uncertainties = False
 
     # Create all output directories
-    logging.info("Creating output directories...")
+    print("Creating output directories...")
     create_output_directories()
 
     # Prepare data in database and load it
@@ -59,7 +59,7 @@ if __name__ == "__main__":
                                                     clustering_algorithms=config.algorithms_and_hyps,
                                                     n_iterations=config.n_iterations,
                                                     scores=config.scores,
-                                                    store_labels=True)
+                                                    store_labels=True)  # We only need labels from first iteration, you can turn it off
         end = time()
         logging.info(f"Running the clustering experiments took {end-start} seconds.")
 
