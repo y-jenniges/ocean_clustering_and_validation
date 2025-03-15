@@ -45,7 +45,9 @@ def run_clustering_experiments(data, preprocessing_steps, clustering_algorithms,
                 # Iterate over hyperparameter combinations
                 for hyp_params in hyp_param_combinations:
                     # Check if result file already exists
-                    result_file_path = f"{config.output_dir_clustering}/internal_validation_{cluster_name}_{counter}.csv"
+                    result_file_path = f"{config.output_dir_clustering}/internal_validation_iteration{i}_" \
+                                       f"{preproc_name}_{cluster_name}_" \
+                                       f"{'_'.join([f'{k}{v}' for k, v in hyp_params.items()])}.csv"
                     if not Path(result_file_path).is_file():
                         # Reset results
                         results = []
@@ -82,9 +84,10 @@ def run_clustering_experiments(data, preprocessing_steps, clustering_algorithms,
                             "iteration": i,
                             "preprocessing": preproc_name,
                             "clustering": cluster_name,
+                            "nclusters": nclusters,
                             "clustering_time": end_time - start_time,
                             "score_time": end_time_scores - start_time_scores,
-                            "clustering_id": counter
+                            # "clustering_id": counter
                         }, **hyp_params, **score_dict})
 
                         # Convert validation results to a DataFrame and store it
@@ -94,7 +97,7 @@ def run_clustering_experiments(data, preprocessing_steps, clustering_algorithms,
                         if store_labels:
                             pd.DataFrame(labels, columns=["label"]).to_csv(f"{config.output_dir_clustering}/"
                                                                            f"external_validation_{cluster_name}_"
-                                                                           f"{counter}.csv", index=False)
+                                                                           f"{counter}.csv", index=True)
                     else:
                         logging.info(f"    Result file for {result_file_path} already exists. Skipping this "
                                      f"experiment.")
@@ -105,7 +108,7 @@ def run_clustering_experiments(data, preprocessing_steps, clustering_algorithms,
     files_to_remove = []
     for cluster_name in clustering_algorithms.keys():
         files_to_combine = [file for file in Path().glob(
-            f"{config.output_dir_clustering}/internal_validation_{cluster_name}_*.csv")]
+            f"{config.output_dir_clustering}/internal_validation_iteration*_*_{cluster_name}_*.csv")]
         files_to_remove = files_to_remove + files_to_combine
         dfs = [pd.read_csv(file) for file in files_to_combine]
         dfs = pd.concat(dfs, ignore_index=True, axis=0)
