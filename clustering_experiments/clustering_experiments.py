@@ -117,7 +117,6 @@ def run_clustering_experiments(data, preprocessing_steps, clustering_algorithms,
 
     # Remove previously combined files
     for file in files_to_remove:
-        if file.is_file():  # Ensure it's a file, not a directory
-            file.unlink()
+        file.unlink()
 
     logging.info("Clustering experiments complete.")
