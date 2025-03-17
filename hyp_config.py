@@ -9,10 +9,10 @@ kmeans_original_hyps = {"n_clusters": 2, "n_init": "auto"}
 kmeans_umap_hyps = {"n_clusters": 10}
 
 # Final hyperparameters for Ward on original data
-ward_original_hyps = {"n_clusters": 2, "linkage": "ward", "distance_threshold": None, "compute_distances": True}
+ward_original_hyps = {"n_clusters": 2, "linkage": "ward", "distance_threshold": None}  # , "compute_distances": True}
 
 # Final hyperparameters for Ward on embedded data
-ward_umap_hyps = {"n_clusters": 24, "linkage": "ward", "distance_threshold": None, "compute_distances": True}
+ward_umap_hyps = {"n_clusters": 24, "linkage": "ward", "distance_threshold": None}  # , "compute_distances": True}
 
 # Final hyperparameters for DBSCAN on original data
 dbscan_original_hyps = {"eps": 0.11949153, "min_samples": 11}
