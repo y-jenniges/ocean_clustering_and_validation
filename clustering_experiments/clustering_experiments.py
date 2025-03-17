@@ -79,6 +79,10 @@ def run_clustering_experiments(data, preprocessing_steps, clustering_algorithms,
                             score_dict[score_name] = score
                         end_time_scores = time()
 
+                        # For DBSCAN, also store number of noise clusters
+                        if cluster_name == "dbscan":
+                            score_dict["nnoise"] = labels.count(-1)
+
                         # Store results
                         results.append({**{
                             "iteration": i,
@@ -100,7 +104,7 @@ def run_clustering_experiments(data, preprocessing_steps, clustering_algorithms,
                                               f"{'_'.join([f'{k}{v}' for k, v in hyp_params.items()])}.csv"
                             pd.DataFrame(labels, columns=["label"]).to_csv(label_file_path, index=True)
                     else:
-                        logging.info(f"    Result file for {result_file_path} already exists. Skipping this "
+                        logging.info(f"      Result file for {result_file_path} already exists. Skipping this "
                                      f"experiment.")
                     counter = counter + 1
 
