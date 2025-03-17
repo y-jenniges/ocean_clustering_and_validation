@@ -53,7 +53,8 @@ preprocessings = {"minmax": [MinMaxScaler], "minmax_umap": [MinMaxScaler, UMAP(*
 algorithms_and_hyps = {"kmeans": (KMeans, {"n_clusters": list(range(2, 16)) + [20, 30, 40, 50, 60],
                                            "n_init": ["auto"]}),
                        "ward": (AgglomerativeClustering, {"n_clusters": range(2, 31), "distance_threshold": [None],
-                                                          "linkage": ["ward"]}),
+                                                          "linkage": ["ward"]}  #, "compute_distances": [True]}
+                                ),
                        "dbscan": (DBSCAN, {"eps": np.linspace(0.01, 0.2, 60), "min_samples": range(2, 12)}),
                        # "optics": (OPTICS, {"min_samples": range(1, 16), "max_eps": [np.inf]})
                        }
