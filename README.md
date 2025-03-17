@@ -5,7 +5,7 @@ Code accompanying the paper ***Jenniges et al.: Systematic definition and valida
 **Note:** Please be aware that running the code requires enough disc space (at least 100 GB) and may take some time to run. 
 On a computer with 200GB free disc space, 32GB RAM, an Intel(R) Core(TM) i7-11800H and 8 cores, 
 preparation and imputation with the given configuration took ~5.5h 
-and one iteration of the clustering experiments ~23h.
+and one iteration of the clustering experiments ~15.5h.
 
 <br>
 
