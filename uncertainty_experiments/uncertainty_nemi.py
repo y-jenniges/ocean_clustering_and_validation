@@ -8,9 +8,8 @@ from visualisation.plotting import color_code_labels
 
 
 def compute_volume(row, dlat, dlon, depths):
-    """ Computes the volume of a grid cell. """
+    """ Computes the volume of a grid cell, which is specified as a row from a pandas dataframe. """
     lat = row["LATITUDE"]
-    lon = row["LONGITUDE"]
     depth = row["LEV_M"]
 
     # Find depth step size
@@ -29,12 +28,13 @@ def compute_volume(row, dlat, dlon, depths):
 
 
 def compute_volumetric_nemi(nemi_pack, base_id: int = 0, max_clusters=None):
-    """ From an ensemble of cluster sets, compute a final labelling and quantify uncertainty.
+    """ From an ensemble of cluster sets, compute a final labelling and quantify uncertainty. Adapted from
+    https://github.com/maikejulie/NEMI.
 
     Args:
-        nemi_pack ():
+        nemi_pack (list<list<int, pandas.Dataframe>>): List containing cluster iteration number and the cluster set.
         base_id (int, optional): Index (starting at 0) of ensemble member to use as the base comparison.
-        max_clusters ():
+        max_clusters (int): Number of cluster sets to compare the base cluster set against.
     """
     base_id = base_id
 
@@ -149,11 +149,13 @@ def compute_volumetric_nemi(nemi_pack, base_id: int = 0, max_clusters=None):
 # @delayed
 def compute_and_store_nemi_cluster_set(df, pack, base_id, prefix="volume_"):
     """
+    Compute volumetric NEMI for a given ensemble of cluster sets and store output as CSV file.
+
     Args:
         df (pandas.DataFrame): Used to store all information form the original dataframe along with the new cluster
         labels.
-        pack ():
-        base_id ():
+        pack (list<list<int, pandas.Dataframe>>): List containing cluster iteration number and the cluster set.
+        base_id (int): Base Id used for the NEMI method.
         prefix (str): Prefix used for filenames of the new cluster sets.
     """
     filename = f"{config.output_dir_uncertainty}{prefix}nemi_iteration{base_id}_uncertainty.csv"
