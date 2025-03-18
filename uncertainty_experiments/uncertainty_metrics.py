@@ -1,77 +1,11 @@
 import logging
-from umap import UMAP
-import pandas as pd
-import numpy as np
-from tqdm import tqdm
 import matplotlib.pyplot as plt
 import seaborn as sns
 from time import time
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.cluster import DBSCAN
+import pandas as pd
+import numpy as np
+from tqdm import tqdm
 import config
-import hyp_config
-
-
-def run_dbscan_on_umap(df):
-    """ Run UMAP-DBSCAN n times on a given dataframe, where n is taken from config.py. """
-    logging.info(f"  Start computing {config.n_iterations_uncertainty} UMAP-DBSCAN cluster sets...")
-
-    # Scale selected columns
-    scaler = MinMaxScaler().fit(df[config.parameters])
-    df_scaled = pd.DataFrame(scaler.transform(df[config.parameters]), columns=config.parameters)
-
-    # Get UMAP components
-    umap_cols = [f"e{i}" for i in range(hyp_config.umap_hyps["n_components"])]
-
-    for i in tqdm(range(config.n_iterations_uncertainty)):
-        # Compute embedding
-        df_umap = pd.DataFrame(UMAP(**hyp_config.umap_hyps).fit_transform(df_scaled), columns=umap_cols)
-
-        # Compute DBSCAN
-        model = DBSCAN(**hyp_config.dbscan_umap_hyps).fit(df_umap)
-
-        # Assemble output dataframe
-        df_out = df.copy()
-        df_out[umap_cols] = df_umap[umap_cols]
-        df_out["label"] = model.labels_
-
-        # Store results
-        df_out.to_csv(f"{config.output_dir_uncertainty}/umap_dbscan_{i}.csv", index=False)
-
-    logging.info("    Completed UMAP-DBSCAN runs.")
-
-
-def run_dbscan_on_fixed_umap(df):
-    """ Run DBSCAN on a fixed embedding n times on a given dataframe, where n is taken from config.py. """
-    logging.info(f"Start computing {config.n_iterations_uncertainty} fixedUMAP-DBSCAN cluster sets...")
-
-    # Scale selected columns
-    scaler = MinMaxScaler().fit(df[config.parameters])
-    df_scaled = pd.DataFrame(scaler.transform(df[config.parameters]), columns=config.parameters)
-
-    # Get UMAP components
-    umap_cols = [f"e{i}" for i in range(hyp_config.umap_hyps["n_components"])]
-
-    # Compute one embedding (fixed for all DBSCAN runs)
-    logging.info("    Compute embedding...")
-    df_umap = pd.DataFrame(UMAP(**hyp_config.umap_hyps).fit_transform(df_scaled), columns=umap_cols)
-
-    # Compute DBSCAN on UMAP multiple times while shuffling the input data
-    logging.info("    Start computing DBSCAN runs on fixed embedding...")
-    for i in tqdm(range(config.n_iterations_uncertainty)):
-        # Shuffling data (shuffling needed since DBSCAN is only sensitive to sequence of input)
-        idx = np.random.permutation(df.index)
-        temp_df_umap = df_umap.reindex(idx)
-        temp_df = df.reindex(idx)
-
-        # Compute DBSCAN on given embedding
-        model = DBSCAN(**hyp_config.dbscan_umap_hyps).fit(temp_df_umap)
-        temp_df["label"] = model.labels_
-
-        # Store results (create dir if it does not exist)
-        temp_df.to_csv(f"{config.output_dir_uncertainty}/fixedUmap_dbscan_{i}.csv", index=False)
-
-    logging.info("    Completed fixedUMAP-DBSCAN runs.")
 
 
 def compute_overlap_matrix(a, b):
