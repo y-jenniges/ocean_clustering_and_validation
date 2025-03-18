@@ -1,6 +1,8 @@
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
 import pandas as pd
+import numpy as np
+import glasbey
 
 
 # Potentially remove this one again?
@@ -85,3 +87,23 @@ def plot_embedding(embedding, color_label=None, alpha=0.08, size=2, save_as=None
     if save_as:
         plt.savefig(save_as, dpi=dpi)
     plt.show()
+
+
+def color_code_labels(df, color_noise_black=False, drop_noise=False, column_name="label"):
+    """ Add a color for each label in the clustering using the Glasbey library. """
+    temp = df.copy()
+
+    # define colors
+    unique_labels = np.sort(np.unique(temp[column_name]))
+    colors = glasbey.create_palette(palette_size=len(unique_labels))
+    color_map = {label: color for label, color in zip(unique_labels, colors)}
+    temp["color"] = temp[column_name].map(lambda x: color_map[x])
+
+    # how to deal with -1 labels (which is noise in DBSCAN)
+    if color_noise_black:
+        temp.loc[temp[column_name] == -1, "color"] = "#000000"
+    if drop_noise:
+        temp = temp[temp[column_name] != -1]
+
+    return temp
+
