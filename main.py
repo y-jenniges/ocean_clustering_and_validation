@@ -3,10 +3,10 @@ import logging
 import pandas as pd
 from time import time
 from pathlib import Path
-from clustering_experiments.clustering_experiments import run_clustering_experiments
+from clustering_experiments.main_clustering_experiments import run_clustering_experiments
 from preparation.preparation import grid_and_impute_data, prepare_database
 import config
-from uncertainty_experiments.uncertainty_experiments import run_uncertainty_experiments
+from uncertainty_experiments.main_uncertainty_experiments import run_uncertainty_experiments
 
 
 def create_output_directories():
