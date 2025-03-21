@@ -81,7 +81,7 @@ def run_clustering_experiments(data, preprocessing_steps, clustering_algorithms,
 
                         # For DBSCAN, also store number of noise clusters
                         if cluster_name == "dbscan":
-                            score_dict["nnoise"] = labels.count(-1)
+                            score_dict["nnoise"] = (labels == -1).sum()
 
                         # Store results
                         results.append({**{
