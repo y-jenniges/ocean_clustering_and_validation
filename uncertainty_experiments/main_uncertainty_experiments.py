@@ -9,8 +9,8 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.cluster import DBSCAN
 import config
 import hyp_config
-from .uncertainty_metrics import compute_uncertainty_metrics, plot_uncertainty_metrics
-from .uncertainty_nemi import compute_and_store_nemi_cluster_set, compute_volume
+from uncertainty_experiments.uncertainty_metrics import compute_uncertainty_metrics, plot_uncertainty_metrics
+from uncertainty_experiments.uncertainty_nemi import compute_and_store_nemi_cluster_set, compute_volume
 
 
 def run_dbscan_on_umap(df):
@@ -129,7 +129,7 @@ def run_uncertainty_experiments(df):
     plot_uncertainty_metrics(prefix="umap_dbscan_")
     logging.info("Finished uncertainty experiments.")
 
-    # Compute NEMI uncertainty
-    compute_nemi_uncertainty(df)
+    # Compute NEMI uncertainty either here or by executing the parallel-code in dask_uncertainty_nemi.ipynb
+    # compute_nemi_uncertainty(df)
 
     logging.info("Uncertainty experiments finished.")
