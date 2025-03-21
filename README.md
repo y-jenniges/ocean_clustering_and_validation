@@ -17,7 +17,6 @@ and one iteration of the clustering experiments ~15.5h.
 | config.py        | Parameter settings for database preparation, gridding and clustering                       |                                                                                      |
 | hyp_config.py    | Final hyperparameter settings of UMAP and clustering methods                               |                                                                                      |
 | requirements.txt | Required Python libraries to run the code                                                  | todo: GENERATE!!                                                                     |
-| ---------------  | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
 
 <br>
 
