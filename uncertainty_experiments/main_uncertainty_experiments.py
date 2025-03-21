@@ -9,8 +9,8 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.cluster import DBSCAN
 import config
 import hyp_config
-from uncertainty_experiments.uncertainty_metrics import compute_uncertainty_metrics, plot_uncertainty_metrics
-from uncertainty_experiments.uncertainty_nemi import compute_and_store_nemi_cluster_set, compute_volume
+from .uncertainty_metrics import compute_uncertainty_metrics, plot_uncertainty_metrics
+from .uncertainty_nemi import compute_and_store_nemi_cluster_set, compute_volume
 
 
 def run_dbscan_on_umap(df):
