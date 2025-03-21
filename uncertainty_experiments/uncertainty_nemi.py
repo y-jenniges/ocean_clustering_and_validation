@@ -59,7 +59,6 @@ def compute_volumetric_nemi(nemi_pack, base_id: int = 0, max_clusters=None):
     summaryStats = np.zeros((num_clusters, max_clusters))
 
     # Compile sorted cluster data
-    # TODO: add assert statement to make sure that the clusters have been sorted?
     dataVector = [(nemi[1].sorted_label, nemi[1].volume) for id, nemi in enumerate(nemi_pack) if id != base_id]
 
     # Loop over ensemble members, not including the base member
