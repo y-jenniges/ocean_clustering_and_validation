@@ -5,6 +5,11 @@ from dash.dependencies import Input, Output
 import numpy as np
 import pandas as pd
 import glasbey
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import MinMaxScaler
+from umap import UMAP
+import config
+import hyp_config
 
 
 def color_code_labels(df, label_name="label_embedding", color_noise_black=False, drop_noise=False):
@@ -28,25 +33,41 @@ def color_code_labels(df, label_name="label_embedding", color_noise_black=False,
 
 # Plot settings
 scatter_size = 1.5
-score_map = {"Silhouette": "silhouette", "Calinski-Harabasz": "calinski", "Davies-Bouldin": "davies_bouldin",
+score_map = {"Silhouette": "silhouette", "Calinski-Harabasz": "calinski_harabasz", "Davies-Bouldin": "davies_bouldin",
              "N clusters": "nclusters"}
 
+# Load original data and compute an embedding
+umap_cols = umap_cols = [f"e{i}" for i in range(hyp_config.umap_hyps["n_components"])]
+df_original = pd.read_csv(f"{config.output_dir}/wide_table_knn.csv")
+pipeline = Pipeline([('scaler', MinMaxScaler()), ('umap', UMAP(**hyp_config.umap_hyps))])
+df_original[umap_cols] = pipeline.fit_transform(df_original[config.parameters])
+
 # Load labels
-labels = pd.read_csv("../data/kmeans_labels.csv")
+iteration = 0
+labels = pd.read_csv(f"{config.output_dir_clustering}/labels_kmeans.csv")
+labels = labels[labels["iteration"] == iteration]
+labels = labels.drop("iteration", axis=1)
+
+# Add geolocation from original data to labels (using left join)
+df_selected = df_original[["LATITUDE", "LONGITUDE", "LEV_M"] + umap_cols]
+labels = labels.merge(df_selected, left_on="Unnamed: 0", right_index=True, how="left")
+labels = labels.drop(["Unnamed: 0"], axis=1)
+labels = labels.pivot(index=[x for x in labels if x not in ["preprocessing", "label"]],
+                      columns="preprocessing", values="label").reset_index()
 
 # Score data
-data = pd.read_csv("../data/kmeans_scores.csv")
-data = data.drop(data[data.n_clusters == 1].index).reset_index(drop=True)
-groupby_cols = ['clustering_on', 'scores_on', 'n_clusters', 'n_init']
-data = data.groupby(groupby_cols).mean().drop("iteration", axis=1).reset_index()  # average over iterations
-data = data.sort_values(['n_clusters', 'n_init'])
-n_clusterss = np.sort(data.n_clusters.unique())  # all n_clusters
+data = pd.read_csv(f"{config.output_dir_clustering}internal_validation_kmeans.csv")
+data = data.drop(["clustering"], axis=1)
+groupby_cols = ["preprocessing"] + list(config.algorithms_and_hyps["kmeans"][1].keys())
+data = data.groupby(groupby_cols).mean().drop("iteration", axis=1).reset_index()  # Average over iterations
+data = data.sort_values(list(config.algorithms_and_hyps["kmeans"][1].keys()))
+n_clusterss = np.sort(data["n_clusters"].unique())  # All n_clusters
 
 print("Data loaded")
 
 # Current hyperparameter values
 cur_n_clusters = 2
-cur_score = "calinski"
+cur_score = "calinski_harabasz"
 
 # Figures
 fig_geo = go.Figure()
@@ -76,12 +97,12 @@ app.layout = html.Div([
                        options=['select all', 'select', 'deselect'], labelStyle={'display': 'inline-block'})
     ),
 
-    html.Div([html.Div([html.Label("Choose which data to cluster:"),
+    html.Div([html.Div([html.Label("Preprocessing:"),
                         dcc.RadioItems(id="data_type",
                                        options=[
-                                           {'label': 'Original data', 'value': 'label_original'},
-                                           {'label': 'Embedded data', 'value': 'label_embedding'}],
-                                       value="label_original",
+                                           {'label': 'MinMax', 'value': 'minmax'},
+                                           {'label': 'MinMax-UMAP', 'value': 'minmax_umap'}],
+                                       value="minmax",
                                        )
                         ]),
               html.Pre(id="textarea", children="Current parameters: ",
@@ -119,8 +140,7 @@ app.layout = html.Div([
 def update_heatmap(score, clickData, figure_geo, figure_umap, umap_clickData, selection_state, old_params, data_type):
     # Filter data
     print(f"Filter data {data_type}")
-    temp = data[(data.clustering_on == data_type.split("_")[1]) & (data.scores_on == data_type.split("_")[1])]
-    temp = temp.drop(['clustering_on', 'scores_on'], axis=1)
+    temp = data[data.preprocessing == data_type]
 
     # Update heatmap
     print(f"Update score plot")
@@ -148,19 +168,19 @@ def update_heatmap(score, clickData, figure_geo, figure_umap, umap_clickData, se
         print(f"  {clickData}")
 
         # Get click coordinates
-        x = clickData['points'][0]['x']
+        x = clickData["points"][0]['x']
         score_value = data[data.n_clusters == x][score_map[score]].values[0]
-        point_number = clickData['points'][0]['pointNumber']
+        point_number = clickData["points"][0]['pointNumber']
 
         # Draw selected point red, all others blue
         trace = next(new_line.select_traces())
-        colors = ['blue'] * len(trace.x)
-        colors[point_number] = 'red'
+        colors = ["blue"] * len(trace.x)
+        colors[point_number] = "red"
         trace.marker.color = colors
 
         # Update label plots
         print("  Update label plots")
-        cur_labels = labels[labels.n_clusters == x]
+        cur_labels = labels[labels["n_clusters"] == x]
         cur_labels = color_code_labels(cur_labels, label_name=data_type)
 
         geo_labels = cur_labels.copy()
