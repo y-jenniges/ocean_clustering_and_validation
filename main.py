@@ -54,12 +54,12 @@ if __name__ == "__main__":
                             handlers=[logging.FileHandler(config.output_dir + "logs_clustering.log"),
                                       logging.StreamHandler(stream=sys.stdout)])
 
-        df_clusterings = run_clustering_experiments(data=df[config.parameters],
+        df_clusterings = run_clustering_experiments(df=df,
                                                     preprocessing_steps=config.preprocessings,
                                                     clustering_algorithms=config.algorithms_and_hyps,
                                                     n_iterations=config.n_iterations,
                                                     scores=config.scores,
-                                                    store_labels=True)  # We only need labels from first iteration, you can turn it off
+                                                    store_labels=True)
         end = time()
         logging.info(f"Running the clustering experiments took {end-start} seconds.")
 
