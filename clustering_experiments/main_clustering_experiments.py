@@ -121,6 +121,55 @@ def run_clustering_experiments(data, preprocessing_steps, clustering_algorithms,
 
     # Remove previously combined files
     for file in files_to_remove:
-        file.unlink()
+        if file.exists():
+            file.unlink()
+
+    # Combine label files
+    files_to_remove = []
+    for cluster_name in clustering_algorithms.keys():
+        dfs = []
+        files_to_combine = [file for file in Path().glob(
+            f"{config.output_dir_clustering}/labels_iteration*_*_{cluster_name}_*.csv")]
+
+        for file in files_to_combine:
+            # Determine parameters from filename
+            i = str(file).split("iteration")[1].split("_")[0]
+            preproc = str(file).split(f"iteration{i}_")[1].split(f"_{cluster_name}")[0]
+
+            # Only combine iteration 0 labels for DBSCAN (otherwise the file gets too big)
+            if cluster_name == "dbscan" and int(i) != 0:
+                print(i)
+                continue
+
+            # Read file
+            t = pd.read_csv(file)
+
+            # Add parameters to temporary dataframe
+            t["iteration"] = i
+            t["preprocessing"] = preproc
+
+            # Add the files to the ones that can be removed
+            files_to_remove.append(str(file))
+
+            # Store each hyperparameter in a separate column
+            for hyp in config.algorithms_and_hyps[cluster_name][1].keys():
+                t[hyp] = str(file).split(hyp)[1].split("_")[0].rstrip(".csv")
+
+            dfs.append(t)
+
+        dfs = pd.concat(dfs, ignore_index=True, axis=0)
+        if cluster_name == "dbscan":
+            out_file = f"{config.output_dir_clustering}labels_{cluster_name}_iteration0.csv"
+        else:
+            out_file = f"{config.output_dir_clustering}labels_{cluster_name}.csv"
+        dfs.to_csv(out_file, index=False)
+
+    # Remove previously combined files
+    for file in files_to_remove:
+        if file.exists():
+            file.unlink()
 
     logging.info("Clustering experiments complete.")
+
+
+
