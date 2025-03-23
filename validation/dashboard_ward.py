@@ -4,50 +4,50 @@ from dash import Dash, dcc, html
 from dash.dependencies import Input, Output
 import numpy as np
 import pandas as pd
-import glasbey
 
-
-def color_code_labels(df, label_name="label_embedding", color_noise_black=False, drop_noise=False):
-    """ Add a color for each label in the clustering using the Glasbey library. """
-    temp = df.copy()
-
-    # Define colors
-    unique_labels = np.sort(np.unique(temp[label_name]))
-    colors = glasbey.create_palette(palette_size=len(unique_labels))
-    color_map = {label: color for label, color in zip(unique_labels, colors)}
-    temp["color"] = temp[label_name].map(lambda x: color_map[x])
-
-    # How to deal with -1 labels (which is noise in DBSCAN)
-    if color_noise_black:
-        temp.loc[temp[label_name] == -1, "color"] = "#000000"
-    if drop_noise:
-        temp = temp[temp[label_name] != -1]
-
-    return temp
+import config
+import hyp_config
+from visualisation.plotting import color_code_labels
 
 
 # Plot settings
 scatter_size = 1.5
-score_map = {"Silhouette": "silhouette", "Calinski-Harabasz": "calinski", "Davies-Bouldin": "davies_bouldin",
+score_map = {"Silhouette": "silhouette", "Calinski-Harabasz": "calinski_harabasz", "Davies-Bouldin": "davies_bouldin",
              "N clusters": "nclusters"}
 
-# Load labels
-labels = pd.read_csv("../data/ward_labels.csv")
+# Load original data
+df_original = pd.read_csv(f"{config.output_dir}/wide_table_knn.csv")
 
-# Load score data
-data = pd.read_csv("../data/ward_scores.csv")
-data = data.drop(data[data.n_clusters == 1].index).reset_index(drop=True)
-data.distance_threshold = data.distance_threshold.astype(str)
-groupby_cols = ['clustering_on', 'scores_on', 'n_clusters', 'distance_threshold', 'linkage']
-data = data.groupby(groupby_cols).mean().drop("iteration", axis=1).reset_index()  # average over iterations
-data = data.sort_values(['n_clusters', 'distance_threshold', 'linkage'])
-n_clusterss = np.sort(data.n_clusters.unique())  # all n_clusters
+# Load labels
+iteration = 0
+labels = pd.read_csv(f"{config.output_dir_clustering}/labels_ward.csv")
+labels = labels[labels["iteration"] == iteration]
+labels = labels.drop("iteration", axis=1)
+
+# Load some default embedding (to use for display of labels that were computed without embedding)
+umap_cols = [f"e{i}" for i in range(hyp_config.umap_hyps["n_components"])]
+df_umap = labels[(labels["preprocessing"] == "minmax_umap") & (labels["iteration"] == 0)]
+
+# Add geolocation from original data to labels (using left join)
+df_selected = df_original[["LATITUDE", "LONGITUDE", "LEV_M"] + umap_cols]
+labels = labels.merge(df_selected, on=["LATITUDE", "LONGITUDE", "LEV_M"], how="left")
+labels = labels.pivot(index=[x for x in labels if x not in ["preprocessing", "label"]],
+                      columns="preprocessing", values="label").reset_index()
+
+# Score data
+data = pd.read_csv(f"{config.output_dir_clustering}internal_validation_ward.csv")
+data = data.drop(["clustering"], axis=1)
+data["distance_threshold"] = data.distance_threshold.astype(str)
+groupby_cols = ["preprocessing"] + list(config.algorithms_and_hyps["ward"][1].keys())
+data = data.groupby(groupby_cols).mean().drop("iteration", axis=1).reset_index()  # Average over iterations
+data = data.sort_values(list(config.algorithms_and_hyps["ward"][1].keys()))
+n_clusterss = np.sort(data["n_clusters"].unique())  # All n_clusters
 
 print("Data loaded")
 
 # Current hyperparameter values
 cur_n_clusters = 2
-cur_score = "calinski"
+cur_score = "calinski_harabasz"
 
 # Figures
 fig_geo = go.Figure()
@@ -65,7 +65,7 @@ app.layout = html.Div([
 
     html.Div(dcc.Graph(figure=line_score, id='line-score', clickData={'points': [
         {'x': cur_n_clusters,
-         'y': data[data.n_clusters == cur_n_clusters].iloc[0][cur_score],
+         'y': data[data["n_clusters"] == cur_n_clusters].iloc[0][cur_score],
          'pointNumber': 0}]}
                        ),
              style={'display': 'inline-block', 'width': '49%'}),
@@ -74,12 +74,12 @@ app.layout = html.Div([
              style={'margin': dict(l=20, r=20, t=20, b=20),
                     'display': 'inline-block'}),
 
-    html.Div([html.Div([html.Label("Choose which data to cluster:"),
+    html.Div([html.Div([html.Label("Preprocessing:"),
                         dcc.RadioItems(id="data_type",
                                        options=[
-                                           {'label': 'Original data', 'value': 'label_original'},
-                                           {'label': 'Embedded data', 'value': 'label_embedding'}],
-                                       value="label_original",
+                                           {'label': 'MinMax', 'value': 'minmax'},
+                                           {'label': 'MinMax-UMAP', 'value': 'minmax_umap'}],
+                                       value="minmax",
                                        )
                         ]),
               html.Pre(id="textarea", children="Current parameters: ",
@@ -110,8 +110,7 @@ app.layout = html.Div([
 def update_heatmap(score, clickData, figure_geo, figure_umap, data_type):
     # Filter data
     print(f"Filter data {data_type}")
-    temp = data[(data.clustering_on == data_type.split("_")[1]) & (data.scores_on == data_type.split("_")[1])]
-    temp = temp.drop(['clustering_on', 'scores_on'], axis=1)
+    temp = data[data.preprocessing == data_type]
 
     # Update score plot
     print(f"Update score plot")
@@ -137,6 +136,10 @@ def update_heatmap(score, clickData, figure_geo, figure_umap, data_type):
         print("  Update label plots")
         cur_labels = labels[labels.n_clusters == x]
         cur_labels = color_code_labels(cur_labels, label_name=data_type)
+
+        # Add UMAP coordinates if none are available
+        if cur_labels["e0"].isna().sum() > 0:
+            cur_labels[umap_cols] = df_umap[umap_cols]
 
         figure_geo = go.Figure(data=go.Scatter3d(name=f"{x}-geo",
                                                  x=cur_labels.LONGITUDE, y=cur_labels.LATITUDE, z=cur_labels.LEV_M * -1,
