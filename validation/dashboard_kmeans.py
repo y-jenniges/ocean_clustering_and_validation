@@ -4,31 +4,10 @@ from dash import Dash, dcc, html
 from dash.dependencies import Input, Output
 import numpy as np
 import pandas as pd
-import glasbey
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import MinMaxScaler
-from umap import UMAP
+
 import config
 import hyp_config
-
-
-def color_code_labels(df, label_name="label_embedding", color_noise_black=False, drop_noise=False):
-    """ Add a color for each label in the clustering using the Glasbey library. """
-    temp = df.copy()
-
-    # Define colors
-    unique_labels = np.sort(np.unique(temp[label_name]))
-    colors = glasbey.create_palette(palette_size=len(unique_labels))
-    color_map = {label: color for label, color in zip(unique_labels, colors)}
-    temp["color"] = temp[label_name].map(lambda x: color_map[x])
-
-    # How to deal with -1 labels (which is noise in DBSCAN)
-    if color_noise_black:
-        temp.loc[temp[label_name] == -1, "color"] = "#000000"
-    if drop_noise:
-        temp = temp[temp[label_name] != -1]
-
-    return temp
+from visualisation.plotting import color_code_labels
 
 
 # Plot settings
@@ -36,11 +15,8 @@ scatter_size = 1.5
 score_map = {"Silhouette": "silhouette", "Calinski-Harabasz": "calinski_harabasz", "Davies-Bouldin": "davies_bouldin",
              "N clusters": "nclusters"}
 
-# Load original data and compute an embedding
-umap_cols = umap_cols = [f"e{i}" for i in range(hyp_config.umap_hyps["n_components"])]
+# Load original data
 df_original = pd.read_csv(f"{config.output_dir}/wide_table_knn.csv")
-pipeline = Pipeline([('scaler', MinMaxScaler()), ('umap', UMAP(**hyp_config.umap_hyps))])
-df_original[umap_cols] = pipeline.fit_transform(df_original[config.parameters])
 
 # Load labels
 iteration = 0
@@ -48,10 +24,13 @@ labels = pd.read_csv(f"{config.output_dir_clustering}/labels_kmeans.csv")
 labels = labels[labels["iteration"] == iteration]
 labels = labels.drop("iteration", axis=1)
 
+# Load some default embedding (to use for display of labels that were computed without embedding)
+umap_cols = [f"e{i}" for i in range(hyp_config.umap_hyps["n_components"])]
+df_umap = labels[(labels["preprocessing"] == "minmax_umap") & (labels["iteration"] == 0)]
+
 # Add geolocation from original data to labels (using left join)
 df_selected = df_original[["LATITUDE", "LONGITUDE", "LEV_M"] + umap_cols]
-labels = labels.merge(df_selected, left_on="Unnamed: 0", right_index=True, how="left")
-labels = labels.drop(["Unnamed: 0"], axis=1)
+labels = labels.merge(df_selected, on=["LATITUDE", "LONGITUDE", "LEV_M"], how="left")
 labels = labels.pivot(index=[x for x in labels if x not in ["preprocessing", "label"]],
                       columns="preprocessing", values="label").reset_index()
 
@@ -182,6 +161,10 @@ def update_heatmap(score, clickData, figure_geo, figure_umap, umap_clickData, se
         print("  Update label plots")
         cur_labels = labels[labels["n_clusters"] == x]
         cur_labels = color_code_labels(cur_labels, label_name=data_type)
+
+        # Add UMAP coordinates if none are available
+        if cur_labels["e0"].isna().sum() > 0:
+            cur_labels[umap_cols] = df_umap[umap_cols]
 
         geo_labels = cur_labels.copy()
         if new_label_selection:
