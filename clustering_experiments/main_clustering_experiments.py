@@ -4,18 +4,19 @@ from time import time
 import numpy as np
 import logging
 import shutil
+from sklearn.preprocessing import MinMaxScaler
 from sklearn.pipeline import Pipeline
 from pathlib import Path
 
 import config
 
 
-def run_clustering_experiments(data, preprocessing_steps, clustering_algorithms, n_iterations, scores, store_labels=False):
+def run_clustering_experiments(df, preprocessing_steps, clustering_algorithms, n_iterations, scores, store_labels=False):
     """
     Perform clustering experiments by building Pipelines with the given models.
 
     Args:
-        data (pandas.DataFrame): Data to run the experiments on.
+        df (pandas.DataFrame): Data to run the experiments on (column selection is specified by config.parameters).
         preprocessing_steps (dict): Name and model(s) to run for preprocessing.
         clustering_algorithms (dict): Name and model(s) to run for clustering.
         n_iterations (int): How often each clustering experiment with each hyperparameter combination will be repeated.
@@ -28,6 +29,9 @@ def run_clustering_experiments(data, preprocessing_steps, clustering_algorithms,
 
     # Counter and path for temp storage of results
     counter = 0
+
+    # Define experiment data
+    data = df[config.parameters]
 
     # Perform each preprocessing-clustering_hyperparameters combination 10 times
     for i in range(n_iterations):
@@ -71,9 +75,13 @@ def run_clustering_experiments(data, preprocessing_steps, clustering_algorithms,
                         start_time_scores = time()
                         nclusters = len(np.unique(labels))
                         score_dict = {}
+
+                        # Extract transformed data from the pipeline, after preprocessing (before clustering)
+                        transformed_data = pipeline[:-1].transform(data)
+
                         for score_name, score_model in scores.items():
                             if nclusters > 1:
-                                score = score_model(data, labels)
+                                score = score_model(transformed_data, labels)
                             else:
                                 score = np.nan
                             score_dict[score_name] = score
@@ -102,7 +110,20 @@ def run_clustering_experiments(data, preprocessing_steps, clustering_algorithms,
                             label_file_path = f"{config.output_dir_clustering}/labels_iteration{i}_"\
                                               f"{preproc_name}_{cluster_name}_" \
                                               f"{'_'.join([f'{k}{v}' for k, v in hyp_params.items()])}.csv"
-                            pd.DataFrame(labels, columns=["label"]).to_csv(label_file_path, index=True)
+
+                            # Create a dataframe continaing labels and geo coordinates
+                            labels_df = pd.DataFrame(labels, columns=["label"])
+                            labels_df[["LATITUDE", "LONGITUDE", "LEV_M"]] = df[["LATITUDE", "LONGITUDE", "LEV_M"]]
+
+                            # If dimensionality reduction (e.g., UMAP) was applied, add embedding coordinates
+                            if transformed_data.shape[1] < data.shape[1]:  # Check if dimensionality was reduced
+                                umap_cols = [f"e{i}" for i in range(transformed_data.shape[1])]
+                                embedding_df = pd.DataFrame(transformed_data, columns=umap_cols)
+                                labels_df = pd.concat([labels_df, embedding_df], axis=1)
+
+                            # Save
+                            labels_df.to_csv(label_file_path, index=False)
+
                     else:
                         logging.info(f"      Result file for {result_file_path} already exists. Skipping this "
                                      f"experiment.")
@@ -164,10 +185,10 @@ def run_clustering_experiments(data, preprocessing_steps, clustering_algorithms,
             out_file = f"{config.output_dir_clustering}labels_{cluster_name}.csv"
         dfs.to_csv(out_file, index=False)
 
-    # Remove previously combined files
-    for file in files_to_remove:
-        if file.exists():
-            file.unlink()
+    # # Remove previously combined files
+    # for file in files_to_remove:
+    #     if file.exists():
+    #         file.unlink()
 
     logging.info("Clustering experiments complete.")
 
