@@ -3,8 +3,6 @@ from itertools import product
 from time import time
 import numpy as np
 import logging
-import shutil
-from sklearn.preprocessing import MinMaxScaler
 from sklearn.pipeline import Pipeline
 from pathlib import Path
 
