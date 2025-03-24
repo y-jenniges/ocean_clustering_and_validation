@@ -119,12 +119,12 @@ def run_uncertainty_experiments(df):
     logging.info("Start uncertainty experiments...")
 
     # Run DBSCAN on fixed UMAP
-    # run_dbscan_on_fixed_umap(df)
+    run_dbscan_on_fixed_umap(df)
     compute_uncertainty_metrics(prefix="fixedUmap_dbscan_", ignore_noise=False)  # True
     plot_uncertainty_metrics(prefix="fixedUmap_dbscan_")
 
     # Run UMAP-DBSCAN multiple times
-    # run_dbscan_on_umap(df)
+    run_dbscan_on_umap(df)
     compute_uncertainty_metrics(prefix="umap_dbscan_", ignore_noise=False)  # todo check if you ignored noise before!! False?
     plot_uncertainty_metrics(prefix="umap_dbscan_")
     logging.info("Finished uncertainty experiments.")
