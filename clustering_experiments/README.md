@@ -1,7 +1,8 @@
 # Scripts for clustering experiments and feature importances
-Scripts in this folder prepare data from the COMFORT database from raw measurements to a fully specified grid product. 
+Scripts in this folder use the prepared data to define UMAP hyperparameters, conduct clustering experiments and compute importance of each feature for a clustering model.  
 
-| File                      | Description                                                                           | Required data                                                      | 
-|---------------------------|---------------------------------------------------------------------------------------|--------------------------------------------------------------------|
-| clustering_experiments.py | Description of the final, gridded and imputed data set                                |                                                                    |
-| feature_importance.py     | Functions and classes to grid data                                                    | labels_kmeans.csv, labels_ward.csv, labels_dbscan.csv from main.py |
+| File                           | Description                                                            | Required data                                                                                  | 
+|--------------------------------|------------------------------------------------------------------------|------------------------------------------------------------------------------------------------|
+| feature_importance.py          | Functions and classes to grid data                                     | labels_kmeans.csv, labels_ward.csv, labels_dbscan_iteration0.csv (from clustering experiments) |
+| main_clustering_experiments.py | Compute different clusterings based on the configurations in config.py |                                                                                                |
+| umap_hyperparameters.py        | Investigation and choice of UMAP hyperparameters                       | wide_table_knn.csv (from data preparation)                                                     |
