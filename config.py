@@ -7,8 +7,12 @@ from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_har
 
 # Output directories
 output_dir = "output/"
+output_dir_clustering = "output/clustering/"
+output_dir_uncertainty = "output/uncertainty/"
 output_dir_plots = "output/plots/"
 output_dir_plots_high_res = "output/plots_high_res/"
+output_dir_nemi = "output/nemi/"
+output_dir_feature_importance = "output/feature_importance/"
 
 # Parameters to impute
 parameters = ["P_TEMPERATURE", "P_SALINITY", "P_OXYGEN", "P_NITRATE", "P_SILICATE", "P_PHOSPHATE"]
@@ -46,7 +50,6 @@ grid_config = {
 bathymetry_path = "../../data/bathymetry/gebco_2022_sub_ice_topo/GEBCO_2022_sub_ice_topo.nc"
 
 # Configuration for clustering experiments
-output_dir_clustering = "output/clustering/"
 n_iterations = 10
 umap_hyps = {"n_neighbors": 20, "min_dist": 0.0, "n_components": 3}
 preprocessings = {"minmax": [MinMaxScaler], "minmax_umap": [MinMaxScaler, UMAP(**umap_hyps)]}
@@ -63,5 +66,4 @@ scores = {"silhouette": silhouette_score,
           "calinski_harabasz": calinski_harabasz_score}
 
 # Configuration for uncertainty experiments
-output_dir_uncertainty = "output/uncertainty/"
 n_iterations_uncertainty = 100
