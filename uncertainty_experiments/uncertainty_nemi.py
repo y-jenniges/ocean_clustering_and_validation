@@ -145,7 +145,6 @@ def compute_volumetric_nemi(nemi_pack, base_id: int = 0, max_clusters=None):
     return clusters, uncertainty
 
 
-# @delayed
 def compute_and_store_nemi_cluster_set(df, pack, base_id, prefix="volume_"):
     """
     Compute volumetric NEMI for a given ensemble of cluster sets and store output as CSV file.
