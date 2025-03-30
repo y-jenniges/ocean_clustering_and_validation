@@ -1,4 +1,6 @@
 import matplotlib.pyplot as plt
+from mpl_toolkits.basemap import Basemap
+import plotly.graph_objects as go
 import cartopy.crs as ccrs
 import pandas as pd
 import numpy as np
@@ -89,6 +91,54 @@ def plot_embedding(embedding, color_label=None, alpha=0.08, size=2, save_as=None
     plt.show()
 
 
+def plot_geo(df, color_label="color", save_as=None, figsize=(6, 6),
+             adjust_left=0, adjust_right=0.92, adjust_top=1.1, adjust_bottom=-0.05, pointsize=0.5, dpi=600,
+             xlabelpad=20, ylabelpad=0, zlabelpad=0):
+    # Define basemap
+    mymap = Basemap(llcrnrlon=df["LONGITUDE"].min(), llcrnrlat=df["LATITUDE"].min(),
+                    urcrnrlon=df["LONGITUDE"].max(), urcrnrlat=df["LATITUDE"].max(), fix_aspect=False)
+
+    # Geographical plot
+    fig = plt.figure(figsize=figsize)
+    ax = fig.add_subplot(projection='3d')
+    ax.scatter(df["LONGITUDE"], df["LATITUDE"], df["LEV_M"], c=df[color_label], s=pointsize, alpha=1, zorder=4)
+    ax.add_collection3d(mymap.drawcoastlines(linewidth=0.5))
+    ax.set_box_aspect((np.ptp(df["LONGITUDE"]), np.ptp(df["LATITUDE"]), np.ptp(df["LEV_M"]) / 50))
+
+    # Add axis labels
+    ax.set_xlabel('Longitude', labelpad=xlabelpad)
+    ax.set_ylabel('Latitude', labelpad=ylabelpad)
+    ax.set_zlabel('Depth [m]', labelpad=zlabelpad)
+
+    # Invert the Z-axis for depth representation
+    plt.gca().invert_zaxis()
+
+    # Define coarse ticks for longitude and latitude
+    lon_ticks = np.linspace(df["LONGITUDE"].min(), df["LONGITUDE"].max(), num=5)  # Adjust num for desired spacing
+    lat_ticks = np.linspace(df["LATITUDE"].min(), df["LATITUDE"].max(), num=5)
+
+    # Set ticks and labels
+    ax.set_xticks(lon_ticks)  # Longitude ticks
+    ax.set_xticklabels([f"{tick:.1f}°" for tick in lon_ticks], rotation=45, ha="right")  # Format as degrees
+
+    ax.set_yticks(lat_ticks)  # Latitude ticks
+    ax.set_yticklabels([f"{tick:.1f}°" for tick in lat_ticks], rotation=0, ha="left")  # Format as degrees
+
+    # Increase padding between ticks and their labels
+    ax.tick_params(axis='x', pad=-5)  # Horizontal ticks
+    ax.tick_params(axis='y', pad=-5)  # Vertical ticks
+    ax.tick_params(axis='z', pad=10)  # Depth ticks
+
+    # Adjust layout
+    plt.tight_layout()
+    plt.subplots_adjust(left=adjust_left, right=adjust_right, top=adjust_top, bottom=adjust_bottom)
+
+    # Save figure
+    if save_as:
+        plt.savefig(save_as, dpi=dpi)
+    plt.show()
+
+
 def color_code_labels(df, color_noise_black=False, drop_noise=False, column_name="label"):
     """ Add a color for each label in the clustering using the Glasbey library. """
     temp = df.copy()
@@ -107,3 +157,69 @@ def color_code_labels(df, color_noise_black=False, drop_noise=False, column_name
 
     return temp
 
+
+def plot_interactive_3d_labels_geo(df, column="label", color_label="color"):
+    """ Interactive 3d geographic scatter plot. """
+    df_display = df.copy()
+
+    scatter_size = 2
+    margin = 5
+
+    longitude_min = df["LONGITUDE"].min()
+    longitude_max = df["LONGITUDE"].max()
+    latitude_min = df["LATITUDE"].min()
+    latitude_max = df["LATITUDE"].max()
+    depth_min = (-1 * df["LEV_M"].min())
+    depth_max = (-1 * df["LEV_M"].max())
+
+    # Define figure
+    figure_geo = go.Figure(data=go.Scatter3d(x=df_display.LONGITUDE, y=df_display.LATITUDE, z=df_display.LEV_M * -1,
+                                             mode='markers',
+                                             marker=dict(size=scatter_size, color=df[color_label], opacity=1),
+                                             hovertemplate='Longitude: %{x}<br>' +
+                                                           'Latitude: %{y}<br>' +
+                                                           'Depth: %{z} m<br>' +
+                                                           'Temperature: %{text[0]:.2f} °C<br>' +
+                                                           'Salinity: %{text[1]:.2f} psu<br>' +
+                                                           'Oxygen: %{text[2]:.2f} µmol/kg<br>' +
+                                                           'Nitrate: %{text[3]:.2f} µmol/kg<br>' +
+                                                           'Silicate: %{text[4]:.2f} µmol/kg<br>' +
+                                                           'Phosphate: %{text[5]:.2f} µmol/kg<br>' +
+                                                           'Label: %{text[6]}<extra></extra>',
+                                             text=df_display[
+                                                 ["P_TEMPERATURE", "P_SALINITY", "P_OXYGEN", "P_NITRATE", "P_SILICATE",
+                                                  "P_PHOSPHATE", column]]
+                                             ))
+
+    # Update figure layout
+    figure_geo.update_layout(margin=dict(l=margin, r=margin, t=margin, b=margin),
+                             scene=dict(xaxis_title="Longitude", yaxis_title="Latitude", zaxis_title="Depth [m]",
+                                        xaxis=dict(range=[longitude_min, longitude_max]),
+                                        yaxis=dict(range=[latitude_min, latitude_max]),
+                                        zaxis=dict(range=[depth_min, depth_max])
+                                        ),
+                             uirevision=True)
+
+    # Show the plot
+    figure_geo.show()
+
+
+def coupled_label_plot(df, color_label="color", save_dir=None, suffix="", save_as=None, figsize=(6, 6),
+                       fontsize=8, ticklabelsize=8,
+                       adjust_left=0, adjust_right=0.92, adjust_top=1.1, adjust_bottom=-0.05, pointsize=0.5, dpi=1000,
+                       xlabelpad=20, ylabelpad=0, zlabelpad=0):
+    """ Plots cluster labels in geographical and embedded space. """
+    if save_as is None:
+        save_as = ["labels_in_geospace", "labels_in_umapspace"]
+    temp = df.copy()
+
+    # Geographic plot
+    filename = save_dir + save_as[0] + suffix + ".png" if save_dir is not None else None
+    plot_geo(temp, color_label=color_label, save_as=filename, figsize=figsize,
+             adjust_left=adjust_left, adjust_right=adjust_right, adjust_top=adjust_top, adjust_bottom=adjust_bottom,
+             pointsize=pointsize, dpi=dpi, xlabelpad=xlabelpad, ylabelpad=ylabelpad, zlabelpad=zlabelpad)
+
+    # UMAP plot
+    filename = save_dir + save_as[1] + suffix + ".png" if save_dir is not None else None
+    plot_embedding(temp, color_label=color_label, alpha=1, save_as=filename, figsize=figsize, fontsize=fontsize,
+                   ticklabelsize=ticklabelsize, dpi=dpi)
