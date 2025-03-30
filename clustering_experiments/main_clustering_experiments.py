@@ -89,6 +89,11 @@ def run_clustering_experiments(df, preprocessing_steps, clustering_algorithms, n
                         if cluster_name == "dbscan":
                             score_dict["nnoise"] = (labels == -1).sum()
 
+                        # Compute proportion of confetti clusters
+                        num_grid_cells = len(labels)
+                        unique_labels, cluster_sizes = np.unique(labels, return_counts=True)
+                        frac_confetti = np.round((cluster_sizes/num_grid_cells*100 <= 0.1).sum()/len(unique_labels)*100, 2)
+
                         # Store results
                         results.append({**{
                             "iteration": i,
@@ -97,7 +102,7 @@ def run_clustering_experiments(df, preprocessing_steps, clustering_algorithms, n
                             "nclusters": nclusters,
                             "clustering_time": end_time - start_time,
                             "score_time": end_time_scores - start_time_scores,
-                            # "clustering_id": counter
+                            "confetti": frac_confetti,
                         }, **hyp_params, **score_dict})
 
                         # Convert validation results to a DataFrame and store it
