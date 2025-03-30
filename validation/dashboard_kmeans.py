@@ -7,7 +7,7 @@ import pandas as pd
 
 import config
 from visualisation.plotting import color_code_labels
-from utils import prepare_labels_df
+from utils.analysis import prepare_labels_df
 
 
 # Plot settings
