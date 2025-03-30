@@ -35,14 +35,15 @@ if __name__ == "__main__":
                             handlers=[logging.FileHandler(config.output_dir + "logs_prepare.log"),
                                       logging.StreamHandler(stream=sys.stdout)])
 
-        prepare_database(parameters=config.parameters, quality_flags=config.quality_flags, temperature_to_potential=True,
+        prepare_database(parameters=config.parameters, quality_flags=config.quality_flags,
+                         temperature_to_potential=True,
                          source_db_path=config.source_db_path, dest_db_path=config.dest_db_path)
         df = grid_and_impute_data(db_path=config.dest_db_path, grid_config=config.grid_config,
                                   bathymetry_path=config.bathymetry_path,
                                   parameters=config.parameters,
                                   output_dir=config.output_dir)
         end = time()
-        logging.info(f"Database preparation, gridding and imputation took {end-start} seconds.")
+        logging.info(f"Database preparation, gridding and imputation took {end - start} seconds.")
     else:
         df = pd.read_csv(config.output_dir + "/wide_table_knn.csv")
 
@@ -54,14 +55,14 @@ if __name__ == "__main__":
                             handlers=[logging.FileHandler(config.output_dir + "logs_clustering.log"),
                                       logging.StreamHandler(stream=sys.stdout)])
 
-        df_clusterings = run_clustering_experiments(df=df,
-                                                    preprocessing_steps=config.preprocessings,
-                                                    clustering_algorithms=config.algorithms_and_hyps,
-                                                    n_iterations=config.n_iterations,
-                                                    scores=config.scores,
-                                                    store_labels=True)
+        run_clustering_experiments(df=df,
+                                   preprocessing_steps=config.preprocessings,
+                                   clustering_algorithms=config.algorithms_and_hyps,
+                                   n_iterations=config.n_iterations,
+                                   scores=config.scores,
+                                   store_labels=True)
         end = time()
-        logging.info(f"Running the clustering experiments took {end-start} seconds.")
+        logging.info(f"Running the clustering experiments took {end - start} seconds.")
 
     # Run uncertainty experiments
     if run_uncertainties:
