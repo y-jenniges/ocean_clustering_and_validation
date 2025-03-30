@@ -109,7 +109,7 @@ def run_clustering_experiments(df, preprocessing_steps, clustering_algorithms, n
                                               f"{preproc_name}_{cluster_name}_" \
                                               f"{'_'.join([f'{k}{v}' for k, v in hyp_params.items()])}.csv"
 
-                            # Create a dataframe continaing labels and geo coordinates
+                            # Create a dataframe containing labels and geo coordinates
                             labels_df = pd.DataFrame(labels, columns=["label"])
                             labels_df[["LATITUDE", "LONGITUDE", "LEV_M"]] = df[["LATITUDE", "LONGITUDE", "LEV_M"]]
 
@@ -168,7 +168,7 @@ def run_clustering_experiments(df, preprocessing_steps, clustering_algorithms, n
             t["preprocessing"] = preproc
 
             # Add the files to the ones that can be removed
-            files_to_remove.append(str(file))
+            files_to_remove.append(Path(file))
 
             # Store each hyperparameter in a separate column
             for hyp in config.algorithms_and_hyps[cluster_name][1].keys():
