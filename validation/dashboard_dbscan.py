@@ -4,27 +4,11 @@ from dash import Dash, dcc, html
 from dash.dependencies import Input, Output, State
 import numpy as np
 import pandas as pd
-import glasbey
 import itertools as it
 
-
-def color_code_labels(df, label_name="label_embedding", color_noise_black=False, drop_noise=False):
-    """ Add a color for each label in the clustering using the Glasbey library. """
-    dc = df.copy()
-
-    # Define colors
-    unique_labels = np.sort(np.unique(dc[label_name]))
-    colors = glasbey.create_palette(palette_size=len(unique_labels))
-    color_map = {label: color for label, color in zip(unique_labels, colors)}
-    dc["color"] = dc[label_name].map(lambda x: color_map[x])
-
-    # How to deal with -1 labels (which is noise in DBSCAN)
-    if color_noise_black:
-        dc.loc[dc[label_name] == -1, "color"] = "#000000"
-    if drop_noise:
-        dc = dc[dc[label_name] != -1]
-
-    return dc
+import config
+from utils.analysis import prepare_labels_df
+from visualisation.plotting import color_code_labels
 
 
 def update_heatmap(df, score, eps, min_samples):
@@ -65,7 +49,7 @@ def update_geo_and_umap(eps, min_samples, noise_check_value, label_selection=[],
 
     # Filter data
     cur_labels = labels[(labels.eps == eps) & (labels.min_samples == min_samples)]
-    cur_labels = color_code_labels(cur_labels, label_name=data_label)
+    cur_labels = color_code_labels(cur_labels, column_name=data_label)
 
     # Show or hide noise
     n = "noise"
@@ -120,7 +104,7 @@ def update_depth(depth, eps, min_samples, noise_check_value, data_label="label_o
     print("  Update depth", depth)
     # Filter data
     cur_labels = labels[(labels.eps == eps) & (labels.min_samples == min_samples)]
-    cur_labels = color_code_labels(cur_labels, label_name=data_label)
+    cur_labels = color_code_labels(cur_labels, column_name=data_label)
 
     # Show or hide noise
     n = "noise"
@@ -150,24 +134,41 @@ scatter_size = 2
 margin = 5
 
 # Load labels
-labels = pd.read_csv("../data/dbscan_labels.csv")
-data_type = "label_original"
+iteration = 0
+labels = pd.read_csv(f"{config.output_dir_clustering}/labels_dbscan_iteration{iteration}.csv")
+labels = prepare_labels_df(labels, iteration=iteration)
 
 # Load score data
-data = pd.read_csv("../data/dbscan_scores_incomplete.csv")
-groupby_cols = ['clustering_on', 'scores_on', 'eps', 'min_samples']
-data = data.groupby(groupby_cols).mean().drop("iteration", axis=1).reset_index()  # average over iterations
-temp = data[(data.clustering_on == data_type.split("_")[1]) & (data.scores_on == data_type.split("_")[1])]  # filter
-temp = temp.drop(['clustering_on', 'scores_on'], axis=1)
-data = data.sort_values(["eps", "min_samples"])
-data.nnoise = data.nnoise * 100 / 49131
+data = pd.read_csv(f"{config.output_dir_clustering}internal_validation_dbscan.csv")
+data = data.drop(["clustering"], axis=1)
+groupby_cols = ["preprocessing"] + list(config.algorithms_and_hyps["dbscan"][1].keys())
+data = data.groupby(groupby_cols).mean().drop("iteration", axis=1).reset_index()  # Average over iterations
+data = data.sort_values(list(config.algorithms_and_hyps["dbscan"][1].keys()))
+
+data.nnoise = data.nnoise * 100 / 49030
 epss = np.sort(data.eps.unique())  # all epsilons
 min_sampless = np.sort(data.min_samples.unique())  # all min_samples
 all_combos = list(it.product(*[epss, min_sampless]))  # all combinations
-score_map = {"Silhouette": "silhouette", "Calinski-Harabasz": "calinski", "Davies-Bouldin": "davies_bouldin",
-             "N clusters": "nclusters", "N noise": "nnoise"}
+score_map = {"Silhouette": "silhouette", "Calinski-Harabasz": "calinski_harabasz", "Davies-Bouldin": "davies_bouldin",
+             "N clusters": "nclusters", "N noise": "nnoise", "Confetti": "confetti"}
 dx = abs(min_sampless[0] - min_sampless[1])
 dy = abs(epss[0] - epss[1])
+
+
+# data = pd.read_csv("../data/dbscan_scores_incomplete.csv")
+# groupby_cols = ['clustering_on', 'scores_on', 'eps', 'min_samples']
+# data = data.groupby(groupby_cols).mean().drop("iteration", axis=1).reset_index()  # average over iterations
+# temp = data[(data.clustering_on == data_type.split("_")[1]) & (data.scores_on == data_type.split("_")[1])]  # filter
+# temp = temp.drop(['clustering_on', 'scores_on'], axis=1)
+# data = data.sort_values(["eps", "min_samples"])
+# data.nnoise = data.nnoise * 100 / 49131
+# epss = np.sort(data.eps.unique())  # all epsilons
+# min_sampless = np.sort(data.min_samples.unique())  # all min_samples
+# all_combos = list(it.product(*[epss, min_sampless]))  # all combinations
+# score_map = {"Silhouette": "silhouette", "Calinski-Harabasz": "calinski", "Davies-Bouldin": "davies_bouldin",
+#              "N clusters": "nclusters", "N noise": "nnoise"}
+# dx = abs(min_sampless[0] - min_sampless[1])
+# dy = abs(epss[0] - epss[1])
 
 print("Data loaded")
 
@@ -179,13 +180,18 @@ cur_depth = 0  # this is the ID of the depth in the depth list
 cur_noise_check_value = ["Hide noise"]
 
 # Figures
-fig_heatmap, cur_score_value = update_heatmap(df=temp, score=cur_score, eps=cur_eps, min_samples=cur_min_samples)
-fig_geo, fig_umap = update_geo_and_umap(eps=cur_eps, min_samples=cur_min_samples,
-                                        noise_check_value=cur_noise_check_value,
-                                        data_label=data_type)
-fig_depth = update_depth(depth=cur_depth, eps=cur_eps, min_samples=cur_min_samples,
-                         noise_check_value=cur_noise_check_value, data_label=data_type)
-cur_text = update_text(eps=cur_eps, min_samples=cur_min_samples, score=cur_score, score_value=cur_score_value)
+fig_geo = go.Figure()
+fig_umap = go.Figure()
+fig_depth = go.Figure()
+fig_heatmap = go.Figure()
+
+# fig_heatmap, cur_score_value = update_heatmap(df=temp, score=cur_score, eps=cur_eps, min_samples=cur_min_samples)
+# fig_geo, fig_umap = update_geo_and_umap(eps=cur_eps, min_samples=cur_min_samples,
+#                                         noise_check_value=cur_noise_check_value,
+#                                         data_label=data_type)
+# fig_depth = update_depth(depth=cur_depth, eps=cur_eps, min_samples=cur_min_samples,
+#                          noise_check_value=cur_noise_check_value, data_label=data_type)
+cur_text = update_text(eps=cur_eps, min_samples=cur_min_samples, score=cur_score, score_value=None)
 
 print("Figures defined")
 
@@ -194,13 +200,13 @@ app = Dash(__name__)
 app.layout = html.Div([
     html.Div([
         dcc.RadioItems(id="score", value='Calinski-Harabasz',
-                       options=['N clusters', 'Calinski-Harabasz', 'Davies-Bouldin', 'Silhouette', 'N noise'],
+                       options=['N clusters', 'Calinski-Harabasz', 'Davies-Bouldin', 'Silhouette', 'N noise', 'Confetti'],
                        labelStyle={'display': 'inline-block'}),
         dcc.Checklist(id="hide-noise-check", options=["Hide noise"], value=cur_noise_check_value),
     ]),
     html.Div(
         dcc.Graph(id='heatmap-score', figure=fig_heatmap,
-                  clickData={'points': [{'x': cur_min_samples, 'y': cur_eps, 'z': cur_score_value}]}),
+                  clickData={'points': [{'x': cur_min_samples, 'y': cur_eps, 'z': None}]}),
         style={'display': 'inline-block', 'width': '49vw'}
     ),
     html.Div(
@@ -208,12 +214,12 @@ app.layout = html.Div([
         style={'margin': dict(l=margin, r=margin, t=margin, b=margin), 'display': 'inline-block', 'width': '49vw'}
     ),
     html.Div([html.Pre(id="textarea", children=cur_text),
-              html.Div([html.Label("Choose which data to cluster:"),
+              html.Div([html.Label("Preprocessing:"),
                         dcc.RadioItems(id="data_type",
                                        options=[
-                                           {'label': 'Original data', 'value': 'label_original'},
-                                           {'label': 'Embedded data', 'value': 'label_embedding'}],
-                                       value=data_type,
+                                           {'label': 'MinMax', 'value': 'minmax'},
+                                           {'label': 'MinMax-UMAP', 'value': 'minmax_umap'}],
+                                       value="minmax",
                                        )
                         ])
               ],
@@ -236,10 +242,10 @@ app.layout = html.Div([
     ),
 
     dcc.Store(id="cur-params", data={"eps": cur_eps, "min_samples": cur_min_samples, 'score': cur_score,
-                                     "score_value": cur_score_value, "depth": cur_depth,
+                                     "score_value": None, "depth": cur_depth,
                                      "selected_labels": [],
                                      'clickData_depth': {'points': [{'lon': None, 'lat': None}]},
-                                     "data_label": data_type}),
+                                     "data_label": None}),
     dcc.Store(id="rotation", data={"umap_relayout": {}, "geo_relayout": {}, "depth_relayout": {}})
 ])
 
@@ -284,9 +290,12 @@ def update_rotation(rotation, geo_relayout, umap_relayout, depth_relayout):
 )
 def update(figure_heatmap, clickData_heatmap, figure_geo, figure_umap, figure_depth, clickData_depth,
            new_score, check_value, new_depth, cur_params, selection_state, cur_rotation, data_type):
-    print(f"Update")
-    cur_data = data[(data.clustering_on == data_type.split("_")[1]) & (data.scores_on == data_type.split("_")[1])]
-    cur_data = cur_data.drop(['clustering_on', 'scores_on'], axis=1)
+    # print(f"Update")
+    # cur_data = data[(data.clustering_on == data_type.split("_")[1]) & (data.scores_on == data_type.split("_")[1])]
+    # cur_data = cur_data.drop(['clustering_on', 'scores_on'], axis=1)
+    # Filter data
+    print(f"Filter data {data_type}")
+    cur_data = data[data.preprocessing == data_type]
 
     # Get data from previous state
     prev_eps = cur_params["eps"]
