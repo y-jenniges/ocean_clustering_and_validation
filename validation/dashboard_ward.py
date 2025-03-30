@@ -8,6 +8,7 @@ import pandas as pd
 import config
 import hyp_config
 from visualisation.plotting import color_code_labels
+from utils import prepare_labels_df
 
 
 # Plot settings
@@ -21,18 +22,7 @@ df_original = pd.read_csv(f"{config.output_dir}/wide_table_knn.csv")
 # Load labels
 iteration = 0
 labels = pd.read_csv(f"{config.output_dir_clustering}/labels_ward.csv")
-labels = labels[labels["iteration"] == iteration]
-labels = labels.drop("iteration", axis=1)
-
-# Load some default embedding (to use for display of labels that were computed without embedding)
-umap_cols = [f"e{i}" for i in range(hyp_config.umap_hyps["n_components"])]
-df_umap = labels[(labels["preprocessing"] == "minmax_umap") & (labels["iteration"] == 0)]
-
-# Add geolocation from original data to labels (using left join)
-df_selected = df_original[["LATITUDE", "LONGITUDE", "LEV_M"] + umap_cols]
-labels = labels.merge(df_selected, on=["LATITUDE", "LONGITUDE", "LEV_M"], how="left")
-labels = labels.pivot(index=[x for x in labels if x not in ["preprocessing", "label"]],
-                      columns="preprocessing", values="label").reset_index()
+labels = prepare_labels_df(labels, iteration=iteration)
 
 # Score data
 data = pd.read_csv(f"{config.output_dir_clustering}internal_validation_ward.csv")
@@ -56,6 +46,7 @@ line_score = px.line(data, x='n_clusters', y=cur_score, markers=True)
 
 print("Figures defined")
 
+
 # Dash app and layout
 app = Dash(__name__)
 app.layout = html.Div([
@@ -63,16 +54,19 @@ app.layout = html.Div([
                              id='score', labelStyle={'display': 'inline-block', 'marginTop': '5px'}),
               ]),
 
-    html.Div(dcc.Graph(figure=line_score, id='line-score', clickData={'points': [
-        {'x': cur_n_clusters,
-         'y': data[data["n_clusters"] == cur_n_clusters].iloc[0][cur_score],
-         'pointNumber': 0}]}
-                       ),
+    html.Div(dcc.Graph(figure=line_score, id='line-score',
+                       clickData={'points': [{'x': cur_n_clusters,
+                                              'y': data[data.n_clusters == cur_n_clusters].iloc[0][cur_score],
+                                              'pointNumber':  0}]}),
              style={'display': 'inline-block', 'width': '49%'}),
 
     html.Div(dcc.Graph(figure=fig_geo, id='fig-geo'),
-             style={'margin': dict(l=20, r=20, t=20, b=20),
-                    'display': 'inline-block'}),
+             style={'margin': dict(l=20, r=20, t=20, b=20), 'display': 'inline-block'}),
+
+    html.Div(
+        dcc.RadioItems(id="selection-state", value='select all',
+                       options=['select all', 'select', 'deselect'], labelStyle={'display': 'inline-block'})
+    ),
 
     html.Div([html.Div([html.Label("Preprocessing:"),
                         dcc.RadioItems(id="data_type",
@@ -89,9 +83,12 @@ app.layout = html.Div([
              style={'margin': dict(l=20, r=20, t=20, b=20), "width": "49%", "height": "49%", "resize": "none",
                     'display': 'inline-block'}),
 
-    html.Div(dcc.Graph(figure=fig_umap, id='fig-umap'),
+    html.Div(dcc.Graph(figure=fig_umap, id='fig-umap',
+                       clickData={'points': [{'x': None, 'y': None, 'z': None, 'text': None}]}),
              style={'margin': dict(l=20, r=20, t=20, b=20),
-                    'display': 'inline-block'})
+                    'display': 'inline-block'}),
+
+    dcc.Store(id="current", data={"label_selection": [], "umap_clickData": None}),
 ])
 
 
@@ -100,62 +97,95 @@ app.layout = html.Div([
     Output('line-score', 'figure'),
     Output('fig-geo', 'figure'),
     Output('fig-umap', 'figure'),
+    Output('current', 'data'),
 
     Input('score', 'value'),
     Input('line-score', 'clickData'),
     Input('fig-geo', 'figure'),
     Input('fig-umap', 'figure'),
+    Input('fig-umap', 'clickData'),
+    Input('selection-state', 'value'),
+    Input('current', 'data'),
     Input('data_type', 'value')
 )
-def update_heatmap(score, clickData, figure_geo, figure_umap, data_type):
+def update_heatmap(score, clickData, figure_geo, figure_umap, umap_clickData, selection_state, old_params, data_type):
     # Filter data
     print(f"Filter data {data_type}")
     temp = data[data.preprocessing == data_type]
 
-    # Update score plot
+    # Update heatmap
     print(f"Update score plot")
     new_line = px.line(temp, x='n_clusters', y=score_map[score], markers=True)
     new_line.update_traces(marker=dict(color=['red'] * len(n_clusterss)))
 
-    if clickData or data_type:
+    # Update label selection
+    prev_label_selection = old_params["label_selection"]
+    prev_umap_clickData = old_params["umap_clickData"]
+    new_label_selection = []
+    if selection_state == 'select':
+        if umap_clickData and (prev_umap_clickData != umap_clickData):
+            print("  Select")
+            selected_label = umap_clickData["points"][0]["text"]
+            new_label_selection = prev_label_selection + [selected_label]
+    elif selection_state == 'deselect':
+        if umap_clickData and (prev_umap_clickData != umap_clickData):
+            print("  Deselect")
+            selected_label = umap_clickData["points"][0]["text"]
+            new_label_selection = [x for x in prev_label_selection if x != selected_label]
+    print(f"  New label selection: {new_label_selection}")
+
+    if clickData:
         print(f"  {data_type}")
         print(f"  {clickData}")
 
         # Get click coordinates
-        x = clickData['points'][0]['x']
-        score_value = temp[temp.n_clusters == x][score_map[score]].values[0]
-        point_number = clickData['points'][0]['pointNumber']
+        x = clickData["points"][0]['x']
+        score_value = data[data.n_clusters == x][score_map[score]].values[0]
+        point_number = clickData["points"][0]['pointNumber']
 
         # Draw selected point red, all others blue
         trace = next(new_line.select_traces())
-        colors = ['blue'] * len(trace.x)
-        colors[point_number] = 'red'
+        colors = ["blue"] * len(trace.x)
+        colors[point_number] = "red"
         trace.marker.color = colors
 
         # Update label plots
         print("  Update label plots")
-        cur_labels = labels[labels.n_clusters == x]
-        cur_labels = color_code_labels(cur_labels, label_name=data_type)
+        cur_labels = labels[labels["n_clusters"] == x]
+        cur_labels = color_code_labels(cur_labels, column_name=data_type)
 
-        # Add UMAP coordinates if none are available
-        if cur_labels["e0"].isna().sum() > 0:
-            cur_labels[umap_cols] = df_umap[umap_cols]
+        geo_labels = cur_labels.copy()
+        if new_label_selection:
+            geo_labels = geo_labels[cur_labels[data_type].isin(new_label_selection)]
 
         figure_geo = go.Figure(data=go.Scatter3d(name=f"{x}-geo",
-                                                 x=cur_labels.LONGITUDE, y=cur_labels.LATITUDE, z=cur_labels.LEV_M * -1,
+                                                 x=geo_labels.LONGITUDE, y=geo_labels.LATITUDE, z=geo_labels.LEV_M * -1,
                                                  mode='markers',
-                                                 marker=dict(size=scatter_size, color=cur_labels.color, opacity=1)))
+                                                 marker=dict(size=scatter_size, color=geo_labels.color, opacity=1),
+                                                 hovertemplate='Longitude: %{x}<br>' +
+                                                               'Latitude: %{y}<br>' +
+                                                               'Depth: %{z}<br>' +
+                                                               'Label: %{text}<extra></extra>',
+                                                 text=geo_labels[data_type]
+                                                 ))
         figure_umap = go.Figure(data=go.Scatter3d(name=f"{x}-umap",
                                                   x=cur_labels.e0, y=cur_labels.e1, z=cur_labels.e2,
                                                   mode='markers',
-                                                  marker=dict(size=scatter_size, color=cur_labels.color, opacity=1)))
+                                                  marker=dict(size=scatter_size, color=cur_labels.color, opacity=1),
+                                                  hovertemplate='x: %{x}<br>' +
+                                                                'y: %{y}<br>' +
+                                                                'z: %{z}<br>' +
+                                                                'Label: %{text}<extra></extra>',
+                                                  text=cur_labels[data_type]
+                                                  ))
         figure_geo.update_layout(margin=dict(l=20, r=20, t=20, b=20))
         figure_umap.update_layout(margin=dict(l=20, r=20, t=20, b=20))
 
         return 'Current parameters: \nn_clusters = {}\n{} = {}'.format(x, score_map[score], np.round(score_value, 2)), \
-               new_line, figure_geo, figure_umap
+               new_line, figure_geo, figure_umap, \
+               {"label_selection": new_label_selection, "umap_clickData": umap_clickData}
     else:
-        return "", new_line, figure_geo, figure_umap
+        return "", new_line, figure_geo, figure_umap, {"label_selection": [], "umap_clickData": None}
 
 
 # Run app

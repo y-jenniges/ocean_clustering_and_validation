@@ -6,8 +6,8 @@ import numpy as np
 import pandas as pd
 
 import config
-import hyp_config
 from visualisation.plotting import color_code_labels
+from utils import prepare_labels_df
 
 
 # Plot settings
@@ -21,18 +21,7 @@ df_original = pd.read_csv(f"{config.output_dir}/wide_table_knn.csv")
 # Load labels
 iteration = 0
 labels = pd.read_csv(f"{config.output_dir_clustering}/labels_kmeans.csv")
-labels = labels[labels["iteration"] == iteration]
-labels = labels.drop("iteration", axis=1)
-
-# Load some default embedding (to use for display of labels that were computed without embedding)
-umap_cols = [f"e{i}" for i in range(hyp_config.umap_hyps["n_components"])]
-df_umap = labels[(labels["preprocessing"] == "minmax_umap") & (labels["iteration"] == 0)]
-
-# Add geolocation from original data to labels (using left join)
-df_selected = df_original[["LATITUDE", "LONGITUDE", "LEV_M"] + umap_cols]
-labels = labels.merge(df_selected, on=["LATITUDE", "LONGITUDE", "LEV_M"], how="left")
-labels = labels.pivot(index=[x for x in labels if x not in ["preprocessing", "label"]],
-                      columns="preprocessing", values="label").reset_index()
+labels = prepare_labels_df(labels, iteration=iteration)
 
 # Score data
 data = pd.read_csv(f"{config.output_dir_clustering}internal_validation_kmeans.csv")
@@ -160,11 +149,7 @@ def update_heatmap(score, clickData, figure_geo, figure_umap, umap_clickData, se
         # Update label plots
         print("  Update label plots")
         cur_labels = labels[labels["n_clusters"] == x]
-        cur_labels = color_code_labels(cur_labels, label_name=data_type)
-
-        # Add UMAP coordinates if none are available
-        if cur_labels["e0"].isna().sum() > 0:
-            cur_labels[umap_cols] = df_umap[umap_cols]
+        cur_labels = color_code_labels(cur_labels, column_name=data_type)
 
         geo_labels = cur_labels.copy()
         if new_label_selection:
