@@ -105,8 +105,8 @@ def load_dbscan_labels(iteration):
 # *********************************************************************************************************************#
 
 
-def get_query_string_hyps_filter(hyp_dict, preproc=None, float_tol=1e-8):
-    """ Helper function to assemble a query for a dataframe to filter for hyperparemeters from a given dict. """
+def get_query_string_hyps_filter(hyp_dict, preproc=None, iteration=None, algorithm=None, float_tol=1e-8):
+    """ Helper function to assemble a query for a dataframe to filter for hyperparameters from a given dict. """
     query_parts = []
     for k, v in hyp_dict.items():
         if v is None or (isinstance(v, float) and pd.isna(v)):
@@ -118,5 +118,11 @@ def get_query_string_hyps_filter(hyp_dict, preproc=None, float_tol=1e-8):
 
     if preproc:  # Add preprocessing condition only if provided
         query_parts.append(f"preprocessing == {repr(preproc)}")
+
+    if iteration:  # Add iteration condition only if provided
+        query_parts.append(f"iteration == {repr(iteration)}")
+
+    if algorithm:  # Add algorithm condition only if provided
+        query_parts.append(f"clustering == {repr(algorithm)}")
 
     return " & ".join(query_parts)
