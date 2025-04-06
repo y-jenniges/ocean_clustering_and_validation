@@ -120,16 +120,17 @@ def run_uncertainty_experiments(df):
 
     # Run DBSCAN on fixed UMAP
     run_dbscan_on_fixed_umap(df)
-    compute_uncertainty_metrics(prefix="fixedUmap_dbscan_", ignore_noise=False)  # True
+    compute_uncertainty_metrics(prefix="fixedUmap_dbscan_", ignore_noise=False)
     plot_uncertainty_metrics(prefix="fixedUmap_dbscan_")
 
     # Run UMAP-DBSCAN multiple times
     run_dbscan_on_umap(df)
-    compute_uncertainty_metrics(prefix="umap_dbscan_", ignore_noise=False)  # todo check if you ignored noise before!! False?
+    compute_uncertainty_metrics(prefix="umap_dbscan_", ignore_noise=False)
     plot_uncertainty_metrics(prefix="umap_dbscan_")
     logging.info("Finished uncertainty experiments.")
 
-    # Compute NEMI uncertainty either here or by executing the parallel-code in dask_uncertainty_nemi.ipynb
+    # Compute NEMI uncertainty
     # compute_nemi_uncertainty(df)
+    # logging.info("Finished NEMI uncertainty experiments.")
 
     logging.info("Uncertainty experiments finished.")
