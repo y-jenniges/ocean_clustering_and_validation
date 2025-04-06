@@ -5,6 +5,7 @@ from time import time
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
+
 import config
 
 
@@ -148,11 +149,12 @@ def compute_uncertainty_metrics(prefix="fixedUmap_dbscan_", ignore_noise=True):
     logging.info(f"  Computing uncertainty metrics took {end - start} sec.")
 
 
-def plot_uncertainty_metrics(prefix="fixedUmap_dbscan_"):
+def plot_uncertainty_metrics(prefix="fixedUmap_dbscan_", close_plots=True):
     """ Plot uncertainty metrics: F clustering accuracy, normalised mutual information and overlap.
     Args:
         prefix (str): Used to load the data as {config.output_dir_uncertainty}{prefix}uncertainty_metrics.csv and as
         prefix to store the plots
+        close_plots (bool): Whether to only store the plots and directly close them or keep them open.
     """
     logging.info("Plotting uncertainty metrics...")
     # Load uncertainty metrics
@@ -165,14 +167,20 @@ def plot_uncertainty_metrics(prefix="fixedUmap_dbscan_"):
     plt.xlabel("F clustering accuracy")
     plt.tight_layout()
     plt.savefig(f"{config.output_dir_plots}{prefix}f_clustering_accuracy.png")
-    plt.close()
+    if close_plots:
+        plt.close()
+    else:
+        plt.show()  # block=True)
 
     plt.figure(figsize=figsize)
     sns.histplot(df_res.normalized_mutual_information)
     plt.xlabel("Normalised mutual information")
     plt.tight_layout()
     plt.savefig(f"{config.output_dir_plots}{prefix}normalised_mutual_information.png")
-    plt.close()
+    if close_plots:
+        plt.close()
+    else:
+        plt.show()  # block=True)
 
     plt.figure(figsize=figsize)
     sns.histplot(df_res.overlap * 100)
@@ -180,7 +188,10 @@ def plot_uncertainty_metrics(prefix="fixedUmap_dbscan_"):
     plt.ticklabel_format(style='plain', axis='x', useOffset=False)
     plt.tight_layout()
     plt.savefig(f"{config.output_dir_plots_high_res}{prefix}overlap.png", dpi=1000)
-    plt.close()
+    if close_plots:
+        plt.close()
+    else:
+        plt.show()  # block=True)
 
     logging.info(
         f"  Mean F clustering accuracy is {df_res.f_accuracy.mean() * 100} +- {df_res.f_accuracy.std() * 100} %")
