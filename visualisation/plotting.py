@@ -36,14 +36,6 @@ def plot_each_depth_level(df, color_label="water", save_as="output/grid_cells.pn
     plt.show(block=True)
 
 
-def plot_boxplots(df, parameters, save_as):
-    pass
-
-
-def plot_histograms(df, save_as=None):
-    pass
-
-
 def plot_embedding(embedding, color_label=None, alpha=0.08, size=2, save_as=None, figsize=(6, 6), fontsize=8,
                    ticklabelsize=8, dpi=1000):
     """ Plot a 2d or 3d embedding. (It can be a pandas.DataFrame or a numpy.array.) """
