@@ -80,7 +80,12 @@ def load_dbscan_labels(iteration):
     """ Load labels of one iteration from DBSCAN. Only for iteration 0, a dataframe was stored since storing all DBSCAN
     labels in one file results in a too large file (~24GB) due to added columns. """
     if iteration == 0:
-        return pd.read_csv(f"{config.output_dir_clustering}labels_dbscan_iteration0.csv")
+        t = pd.read_csv(f"{config.output_dir_clustering}labels_dbscan_iteration0.csv")
+
+        # Ensure proper types
+        t["eps"] = t["eps"].astype(float)
+        t["min_samples"] = t["min_samples"].astype(int)
+        return t
     else:
         # All other labels have not been concatenated, so we do it on the fly here
         dfs = []
@@ -89,12 +94,16 @@ def load_dbscan_labels(iteration):
             t = pd.read_csv(file)
 
             # Add parameters to temporary dataframe
-            t["iteration"] = iteration
+            t["iteration"] = int(iteration)
             t["preprocessing"] = str(file).split(f"iteration{iteration}_")[1].split("_dbscan")[0]
 
             # Store each hyperparameter in a separate column
             for hyp in config.algorithms_and_hyps["dbscan"][1].keys():
                 t[hyp] = str(file).split(hyp)[1].split("_")[0].rstrip(".csv")
+
+            # Ensure proper types
+            t["eps"] = t["eps"].astype(float)
+            t["min_samples"] = t["min_samples"].astype(int)
 
             dfs.append(t)
         return pd.concat(dfs, ignore_index=True, axis=0)
