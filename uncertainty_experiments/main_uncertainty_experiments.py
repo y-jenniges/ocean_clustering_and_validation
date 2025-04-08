@@ -76,6 +76,10 @@ def run_dbscan_on_fixed_umap(df):
 
 
 def compute_nemi_uncertainty(df):
+    """ Compute NEMI cluster sets with all possible base ids.
+    Based on: https://github.com/maikejulie/NEMI (Sonnewald, M., in review. A hierarchical ensemble manifold
+    methodology for new knowledge on spatial data: An application to ocean physics. Journal of Advances in Modeling
+    Earth Systems. Available: ESSOAr.)."""
     # Load all clustering runs
     pack = []
     for filename in tqdm(glob.glob(f"{config.output_dir_uncertainty}umap_dbscan_*.csv")):
@@ -130,7 +134,7 @@ def run_uncertainty_experiments(df):
     logging.info("Finished uncertainty experiments.")
 
     # Compute NEMI uncertainty
-    # compute_nemi_uncertainty(df)
-    # logging.info("Finished NEMI uncertainty experiments.")
+    compute_nemi_uncertainty(df)
+    logging.info("Finished NEMI uncertainty experiments.")
 
     logging.info("Uncertainty experiments finished.")
