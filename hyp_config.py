@@ -20,4 +20,5 @@ dbscan_original_hyps = {"eps": 0.11949153, "min_samples": 11}
 
 # Final hyperparameters for DBSCAN on embedded data
 # dbscan_umap_hyps = {"eps": 0.10983051, "min_samples": 4}
-dbscan_umap_hyps = {"eps": 0.11627119, "min_samples": 5}
+# dbscan_umap_hyps = {"eps": 0.11627119, "min_samples": 5}
+dbscan_umap_hyps = {"eps": 0.10661017, "min_samples": 4}
