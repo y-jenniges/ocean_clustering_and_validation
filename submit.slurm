@@ -5,7 +5,7 @@
 #SBATCH -p smp
 #SBATCH -t 01:00:00
 #SBATCH --qos=12h
-#SBATCH --ntasks=1s
+#SBATCH --ntasks=1
 
 #SBATCH --job-name=test_array
 #SBATCH --output=logs/output_%A_%a.out
@@ -14,8 +14,8 @@
 #SBATCH --cpus-per-task=1
 
 # Load your Python environment if needed
-# module load conda
-# conda activate ocean_clustering_and_validation
+module load conda
+conda activate ocean_clustering_and_validation
 
 # Call the Python script with the SLURM_ARRAY_TASK_ID as the argument
 python test.py ${SLURM_ARRAY_TASK_ID}
