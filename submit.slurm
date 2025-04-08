@@ -3,8 +3,8 @@
 # Job settings
 #SBATCH -A oekochem.oekochem
 #SBATCH -p smp
-#SBATCH -t 01:00:00
-#SBATCH --qos=12h
+#SBATCH -t 48:00:00
+#SBATCH --qos=48h
 #SBATCH --ntasks=1
 
 #SBATCH --job-name=test_array
@@ -12,7 +12,7 @@
 #SBATCH --error=logs/error_%A_%a.err
 #SBATCH --array=0-99
 #SBATCH --cpus-per-task=1
-#SBATCH --mem=1G
+#SBATCH --mem=16G
 
 # Load your Python environment if needed
 module load conda
