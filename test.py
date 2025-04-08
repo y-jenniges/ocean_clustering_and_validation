@@ -2,7 +2,7 @@ import pandas as pd
 import sys
 import numpy as np
 from tqdm import tqdm
-from glob import glob
+import glob
 import config
 from uncertainty_experiments.uncertainty_nemi import compute_and_store_nemi_cluster_set, compute_volume
 
