@@ -20,8 +20,8 @@ def create_output_directories():
 
 if __name__ == "__main__":
     prepare_data = False
-    run_clusterings = True
-    run_uncertainties = False
+    run_clusterings = False
+    run_uncertainties = True
 
     # Create all output directories
     print("Creating output directories...")
