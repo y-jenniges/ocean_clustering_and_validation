@@ -9,6 +9,7 @@ import itertools as it
 import config
 from utils.analysis import prepare_labels_df
 from visualisation.plotting import color_code_labels
+from utils.analysis import load_dbscan_labels, get_query_string_hyps_filter
 
 
 def update_heatmap(df, score, eps, min_samples):
@@ -48,7 +49,8 @@ def update_geo_and_umap(eps, min_samples, noise_check_value, label_selection=[],
     print("  Update geo and umap", eps, min_samples, noise_check_value, label_selection, data_label)
 
     # Filter data
-    cur_labels = labels[(labels.eps == eps) & (labels.min_samples == min_samples)]
+    query_str = get_query_string_hyps_filter({"eps": eps, "min_samples": min_samples}, float_tol=1e-8)
+    cur_labels = labels.query(query_str)
     cur_labels = color_code_labels(cur_labels, column_name=data_label)
 
     # Show or hide noise
@@ -103,7 +105,8 @@ def update_text(eps, min_samples, score, score_value):
 def update_depth(depth, eps, min_samples, noise_check_value, data_label="label_original"):
     print("  Update depth", depth)
     # Filter data
-    cur_labels = labels[(labels.eps == eps) & (labels.min_samples == min_samples)]
+    query_str = get_query_string_hyps_filter({"eps": eps, "min_samples": min_samples}, float_tol=1e-8)
+    cur_labels = labels.query(query_str)
     cur_labels = color_code_labels(cur_labels, column_name=data_label)
 
     # Show or hide noise
@@ -113,6 +116,7 @@ def update_depth(depth, eps, min_samples, noise_check_value, data_label="label_o
         cur_labels = cur_labels[cur_labels[data_label] != -1]
 
     # Filter for depth
+    print(depth, len(cur_labels))
     temp_labels = cur_labels[cur_labels.LEV_M == cur_labels.LEV_M.unique()[depth]]
 
     # Define figure
@@ -134,8 +138,8 @@ scatter_size = 2
 margin = 5
 
 # Load labels
-iteration = 0
-labels = pd.read_csv(f"{config.output_dir_clustering}/labels_dbscan_iteration{iteration}.csv")
+iteration = 4
+labels = load_dbscan_labels(iteration)
 labels = prepare_labels_df(labels, iteration=iteration)
 
 # Load score data
@@ -290,9 +294,6 @@ def update_rotation(rotation, geo_relayout, umap_relayout, depth_relayout):
 )
 def update(figure_heatmap, clickData_heatmap, figure_geo, figure_umap, figure_depth, clickData_depth,
            new_score, check_value, new_depth, cur_params, selection_state, cur_rotation, data_type):
-    # print(f"Update")
-    # cur_data = data[(data.clustering_on == data_type.split("_")[1]) & (data.scores_on == data_type.split("_")[1])]
-    # cur_data = cur_data.drop(['clustering_on', 'scores_on'], axis=1)
     # Filter data
     print(f"Filter data {data_type}")
     cur_data = data[data.preprocessing == data_type]
