@@ -1,9 +1,10 @@
 #!/bin/bash
 
 # Job settings
-#SBATCH --yvjennig
-#SBATCH --partition=smp
-#SBATCH --time=01:00:00
+#SBATCH -A oekochem.oekochem
+#SBATCH -p smp
+#SBATCH -t 01:00:00
+#SBATCH --qos=12h
 #SBATCH --ntasks=1s
 
 #SBATCH --job-name=test_array
