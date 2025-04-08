@@ -36,8 +36,6 @@ def compute_volumetric_nemi(nemi_pack, base_id: int = 0, max_clusters=None):
         base_id (int, optional): Index (starting at 0) of ensemble member to use as the base comparison.
         max_clusters (int): Number of cluster sets to compare the base cluster set against.
     """
-    base_id = base_id
-
     # List of ensemble members we are comparing to the base
     compare_ids = [i for i in range(len(nemi_pack))]
     compare_ids.pop(base_id)
@@ -140,7 +138,7 @@ def compute_volumetric_nemi(nemi_pack, base_id: int = 0, max_clusters=None):
     clusters = voteOverlaps
 
     # Compute how uncertain the prediction is
-    uncertainty = 1 - np.max(aggOverlaps, axis=0)
+    uncertainty = 100 - np.max(aggOverlaps, axis=0)
 
     return clusters, uncertainty
 
@@ -148,6 +146,9 @@ def compute_volumetric_nemi(nemi_pack, base_id: int = 0, max_clusters=None):
 def compute_and_store_nemi_cluster_set(df, pack, base_id, prefix="volume_"):
     """
     Compute volumetric NEMI for a given ensemble of cluster sets and store output as CSV file.
+    Adapted from: https://github.com/maikejulie/NEMI (Sonnewald, M., in review. A hierarchical ensemble manifold
+    methodology for new knowledge on spatial data: An application to ocean physics. Journal of Advances in Modeling
+    Earth Systems. Available: ESSOAr.).
 
     Args:
         df (pandas.DataFrame): Used to store all information form the original dataframe along with the new cluster
@@ -156,15 +157,23 @@ def compute_and_store_nemi_cluster_set(df, pack, base_id, prefix="volume_"):
         base_id (int): Base Id used for the NEMI method.
         prefix (str): Prefix used for filenames of the new cluster sets.
     """
-    filename = f"{config.output_dir_uncertainty}{prefix}nemi_iteration{base_id}_uncertainty.csv"
+    filename = f"{config.output_dir_uncertainty}{prefix}nemi_iteration{base_id}.csv"
 
-    # Only do computations if file does not yet exist
+    # Only do computations if the file does not exist
     if Path(filename).exists():
-        # Compute NEMI labels and uncertainty
-        final_labels, uncertainty = compute_volumetric_nemi(nemi_pack=pack, base_id=base_id)
+        return f"Skipping {filename}, already exists."
+    else:
+        print(f"NEMI computation for {filename}")
 
-        # Store
-        df["final_label"] = final_labels
-        df["uncertainty"] = uncertainty * 100
-        df = color_code_labels(df, column_name="final_label").rename({"color": "label_color"}, axis=1)
-        df.to_csv(filename, index=False)
+    # Compute NEMI labels and uncertainty
+    final_labels, uncertainty = compute_volumetric_nemi(nemi_pack=pack, base_id=base_id)
+
+    # Store results
+    df["final_label"] = final_labels
+    df["uncertainty"] = uncertainty
+    df = color_code_labels(df, column_name="final_label").rename({"color": "label_color"}, axis=1)
+
+    # Save to CSV
+    df.to_csv(filename, index=False)
+
+    return f"Processed {filename}"
