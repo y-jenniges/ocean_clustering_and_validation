@@ -12,6 +12,7 @@
 #SBATCH --error=logs/error_%A_%a.err
 #SBATCH --array=0-99
 #SBATCH --cpus-per-task=1
+#SBATCH --mem=1G
 
 # Load your Python environment if needed
 module load conda
