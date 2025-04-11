@@ -7,6 +7,7 @@ from tqdm import tqdm
 import glob
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.cluster import DBSCAN
+
 import config
 import hyp_config
 from uncertainty_experiments.uncertainty_metrics import compute_uncertainty_metrics, plot_uncertainty_metrics
@@ -75,7 +76,7 @@ def run_dbscan_on_fixed_umap(df):
     logging.info("    Completed fixedUMAP-DBSCAN runs.")
 
 
-def compute_nemi_uncertainty(df):
+def compute_nemi_uncertainty():
     """ Compute NEMI cluster sets with all possible base ids.
     Based on: https://github.com/maikejulie/NEMI (Sonnewald, M., in review. A hierarchical ensemble manifold
     methodology for new knowledge on spatial data: An application to ocean physics. Journal of Advances in Modeling
@@ -113,28 +114,31 @@ def compute_nemi_uncertainty(df):
 
     prefix = "volume_"
     df = pack[0][1]
+    # Compute NEMI for every base id
     for base_id in tqdm(range(config.n_iterations_uncertainty)):
         compute_and_store_nemi_cluster_set(df=df, pack=pack, base_id=base_id, prefix=prefix)
 
 
 def run_uncertainty_experiments(df):
+    """ Run UMAP and DBSCAN uncertainty experiments on a given dataframe, as well as NEMI cluster sets. """
+    # Hide some debug messages
     logging.getLogger('numba').setLevel(logging.WARNING)  # Hide numba debug messages (numba is used in umap-learn)
     matplotlib.set_loglevel("warning")  # Hide matplotlib debug messages
     logging.info("Start uncertainty experiments...")
 
     # Run DBSCAN on fixed UMAP
-    # run_dbscan_on_fixed_umap(df)
-    # compute_uncertainty_metrics(prefix="fixedUmap_dbscan_", ignore_noise=False)
-    # plot_uncertainty_metrics(prefix="fixedUmap_dbscan_")
+    run_dbscan_on_fixed_umap(df)
+    compute_uncertainty_metrics(prefix="fixedUmap_dbscan_", ignore_noise=False)
+    plot_uncertainty_metrics(prefix="fixedUmap_dbscan_")
 
     # Run UMAP-DBSCAN multiple times
-    # run_dbscan_on_umap(df)
-    # compute_uncertainty_metrics(prefix="umap_dbscan_", ignore_noise=False)
-    # plot_uncertainty_metrics(prefix="umap_dbscan_")
-    # logging.info("Finished uncertainty experiments.")
+    run_dbscan_on_umap(df)
+    compute_uncertainty_metrics(prefix="umap_dbscan_", ignore_noise=False)
+    plot_uncertainty_metrics(prefix="umap_dbscan_")
+    logging.info("Finished uncertainty experiments.")
 
-    # Compute NEMI uncertainty
-    compute_nemi_uncertainty(df)
+    # Compute NEMI uncertainty (on umap_dbscan_*.csv files computed in run_dbscan_on_umap above)
+    compute_nemi_uncertainty()
     logging.info("Finished NEMI uncertainty experiments.")
 
     logging.info("Uncertainty experiments finished.")
