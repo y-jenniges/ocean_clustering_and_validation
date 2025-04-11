@@ -138,7 +138,7 @@ scatter_size = 2
 margin = 5
 
 # Load labels
-iteration = 4
+iteration = 6
 labels = load_dbscan_labels(iteration)
 labels = prepare_labels_df(labels, iteration=iteration)
 
@@ -158,22 +158,6 @@ score_map = {"Silhouette": "silhouette", "Calinski-Harabasz": "calinski_harabasz
 dx = abs(min_sampless[0] - min_sampless[1])
 dy = abs(epss[0] - epss[1])
 
-
-# data = pd.read_csv("../data/dbscan_scores_incomplete.csv")
-# groupby_cols = ['clustering_on', 'scores_on', 'eps', 'min_samples']
-# data = data.groupby(groupby_cols).mean().drop("iteration", axis=1).reset_index()  # average over iterations
-# temp = data[(data.clustering_on == data_type.split("_")[1]) & (data.scores_on == data_type.split("_")[1])]  # filter
-# temp = temp.drop(['clustering_on', 'scores_on'], axis=1)
-# data = data.sort_values(["eps", "min_samples"])
-# data.nnoise = data.nnoise * 100 / 49131
-# epss = np.sort(data.eps.unique())  # all epsilons
-# min_sampless = np.sort(data.min_samples.unique())  # all min_samples
-# all_combos = list(it.product(*[epss, min_sampless]))  # all combinations
-# score_map = {"Silhouette": "silhouette", "Calinski-Harabasz": "calinski", "Davies-Bouldin": "davies_bouldin",
-#              "N clusters": "nclusters", "N noise": "nnoise"}
-# dx = abs(min_sampless[0] - min_sampless[1])
-# dy = abs(epss[0] - epss[1])
-
 print("Data loaded")
 
 # Current hyperparameter values
@@ -188,13 +172,6 @@ fig_geo = go.Figure()
 fig_umap = go.Figure()
 fig_depth = go.Figure()
 fig_heatmap = go.Figure()
-
-# fig_heatmap, cur_score_value = update_heatmap(df=temp, score=cur_score, eps=cur_eps, min_samples=cur_min_samples)
-# fig_geo, fig_umap = update_geo_and_umap(eps=cur_eps, min_samples=cur_min_samples,
-#                                         noise_check_value=cur_noise_check_value,
-#                                         data_label=data_type)
-# fig_depth = update_depth(depth=cur_depth, eps=cur_eps, min_samples=cur_min_samples,
-#                          noise_check_value=cur_noise_check_value, data_label=data_type)
 cur_text = update_text(eps=cur_eps, min_samples=cur_min_samples, score=cur_score, score_value=None)
 
 print("Figures defined")
@@ -381,8 +358,6 @@ def update(figure_heatmap, clickData_heatmap, figure_geo, figure_umap, figure_de
         else:
             selected_label = [selected_label.values[0]]
 
-        # print(lat, lon, prev_selected_labels)
-
         # Only update figures if the click data is different to the previous click data7
         new_selected_labels = prev_selected_labels
         if selection_state == "select all":
@@ -393,8 +368,6 @@ def update(figure_heatmap, clickData_heatmap, figure_geo, figure_umap, figure_de
                 new_selected_labels = prev_selected_labels + selected_label
             elif selection_state == "deselect":
                 new_selected_labels = [x for x in prev_selected_labels if x != selected_label[0]]
-
-        # print(lat, lon, new_selected_labels)
 
         # Update label selection
         new_params["selected_labels"] = new_selected_labels
@@ -428,45 +401,6 @@ def update(figure_heatmap, clickData_heatmap, figure_geo, figure_umap, figure_de
                         "projection.rotation.lon"]
 
     return new_heatmap_fig, new_geo_fig, new_umap_fig, new_depth_fig, new_txt, new_params
-
-
-# import pandas as pd
-# import numpy as np
-# data_label = "label_embedding"
-# # data_label = "label_original"
-# labels = pd.read_csv("data/dbscan_labels.csv")
-# df_in = pd.read_csv("data/df_wide_knn.csv")
-# def get_info(cluster_label, labels, df_in, eps=0.10983051, min_samples=4):
-#     # filter for the correct hyperparameter combination
-#     temp = labels[(np.round(labels.eps, 8) == np.round(eps, 8)) & (labels.min_samples == min_samples)]
-#     all_labels = temp[data_label].unique()  # find all labels of that clustering
-#
-#     # check if cluster label exists
-#     if cluster_label in all_labels:
-#         temp = temp[temp[data_label] == cluster_label]  # filter out the cluster label
-#         # merge labels to parameter information
-#         temp_merged = pd.merge(left=temp, right=df_in, how="left", on=["LATITUDE", "LONGITUDE", "LEV_M"])
-#         with pd.option_context('display.max_rows', None, 'display.max_columns', None):
-#             print(f"Information on cluster label {cluster_label}")
-#             print(temp_merged[[x for x in temp_merged.columns
-#                                if x not in ["eps", "min_samples", "label_embedding", "label_original"]]].describe())
-#
-#         return temp_merged
-#     else:
-#         print(f"Cluster label {cluster_label} not found.")
-#         return
-#
-#
-# def difference_between_two_labels(a, b, labels, df_in, eps=0.10983051, min_samples=4):
-#     a_data = get_info(a, labels, df_in, eps, min_samples)
-#     b_data = get_info(b, labels, df_in, eps, min_samples)
-#
-#     diff = (a_data.describe() - b_data.describe())
-#     with pd.option_context('display.max_rows', None, 'display.max_columns', None):
-#         print(f"Information on the difference of cluster labels {a} and {b}")
-#         print(diff[[x for x in a_data.columns if x not in ["eps", "min_samples", "label_embedding", "label_original"]]])
-#
-#     # return diff
 
 
 # Run app
