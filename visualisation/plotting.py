@@ -150,22 +150,19 @@ def color_code_labels(df, color_noise_black=False, drop_noise=False, column_name
     return temp
 
 
-def plot_interactive_3d_labels_geo(df, column="label", color_label="color"):
+def plot_interactive_geo(df, column="label", color_label="color", scatter_size=3, margin=5):
     """ Interactive 3d geographic scatter plot. """
     df_display = df.copy()
-
-    scatter_size = 2
-    margin = 5
 
     longitude_min = df["LONGITUDE"].min()
     longitude_max = df["LONGITUDE"].max()
     latitude_min = df["LATITUDE"].min()
     latitude_max = df["LATITUDE"].max()
-    depth_min = (-1 * df["LEV_M"].min())
-    depth_max = (-1 * df["LEV_M"].max())
+    depth_min = df["LEV_M"].min()
+    depth_max = df["LEV_M"].max()
 
     # Define figure
-    figure_geo = go.Figure(data=go.Scatter3d(x=df_display.LONGITUDE, y=df_display.LATITUDE, z=df_display.LEV_M * -1,
+    figure_geo = go.Figure(data=go.Scatter3d(x=df_display.LONGITUDE, y=df_display.LATITUDE, z=df_display.LEV_M,
                                              mode='markers',
                                              marker=dict(size=scatter_size, color=df[color_label], opacity=1),
                                              hovertemplate='Longitude: %{x}<br>' +
@@ -188,7 +185,7 @@ def plot_interactive_3d_labels_geo(df, column="label", color_label="color"):
                              scene=dict(xaxis_title="Longitude", yaxis_title="Latitude", zaxis_title="Depth [m]",
                                         xaxis=dict(range=[longitude_min, longitude_max]),
                                         yaxis=dict(range=[latitude_min, latitude_max]),
-                                        zaxis=dict(range=[depth_min, depth_max])
+                                        zaxis=dict(range=[depth_max, depth_min])
                                         ),
                              uirevision=True)
 
