@@ -5,6 +5,9 @@ import cartopy.crs as ccrs
 import pandas as pd
 import numpy as np
 import glasbey
+import gsw
+import seaborn as sns
+from sklearn.preprocessing import MinMaxScaler
 
 
 def plot_each_depth_level(df, color_label="water", save_as="output/grid_cells.png"):
@@ -216,3 +219,114 @@ def coupled_label_plot(df, color_label="color", save_dir=None, suffix="", save_a
     filename = save_dir + save_as[1] + suffix + ".png" if save_dir is not None else None
     plot_embedding(temp, color_label=color_label, alpha=1, save_as=filename, figsize=figsize, fontsize=fontsize,
                    ticklabelsize=ticklabelsize, dpi=dpi)
+
+
+def plot_ts(df, figsize=(4, 4), dpi=None, ncols=5, xlim=None, ylim=None,
+            save_as=None, fontsize=None,
+            adjust_left=0, adjust_right=1, adjust_top=1, adjust_bottom=0, legend_loc="center right",
+            anchor=(0.0, -0.15)):
+    """ Plot TS diagram. """
+    temp = df.copy()
+
+    # Compute necessary parameters
+    temp["pressure"] = gsw.p_from_z(-1 * temp["LEV_M"], temp["LATITUDE"])
+    temp["abs_salinity"] = gsw.SA_from_SP(temp["P_SALINITY"], temp["pressure"], temp["LONGITUDE"], temp["LATITUDE"])
+    temp["cons_temperature"] = gsw.CT_from_pt(temp["abs_salinity"], temp["P_TEMPERATURE"])
+    temp["rho"] = gsw.rho(temp["abs_salinity"], temp["cons_temperature"], temp["pressure"])
+
+    # Plot limits
+    smin = temp["abs_salinity"].min() - (0.01 * temp["abs_salinity"].min())
+    smax = temp["abs_salinity"].max() + (0.01 * temp["abs_salinity"].max())
+    tmin = temp["cons_temperature"].min() - (0.1 * temp["cons_temperature"].max())
+    tmax = temp["cons_temperature"].max() + (0.1 * temp["cons_temperature"].max())
+
+    if xlim:
+        smin = xlim[0] - (0.01 * xlim[0])
+        smax = xlim[1] + (0.01 * xlim[1])
+
+    if ylim:
+        tmin = ylim[0] - (0.01 * ylim[0])
+        tmax = ylim[1] + (0.01 * ylim[1])
+
+    # Number of gridcells in the x and y dimensions
+    xdim = int(round((smax - smin) / 0.1 + 1, 0))
+    ydim = int(round((tmax - tmin) / 0.1 + 1, 0))
+
+    # Empty grid
+    dens = np.zeros((ydim, xdim))
+
+    # Temperature and salinity vectors
+    si = np.linspace(1, xdim - 1, xdim) * 0.1 + smin
+    ti = np.linspace(1, ydim - 1, ydim) * 0.1 + tmin
+
+    # Fill grid with densities
+    for j in range(0, int(ydim)):
+        for i in range(0, int(xdim)):
+            dens[j, i] = gsw.rho(si[i], ti[j], 0)
+
+    # Convert to sigma-t
+    dens = dens - 1000
+
+    # Plot
+    fig = plt.figure(figsize=figsize)
+    ax = fig.add_subplot(111)
+    contours = plt.contour(si, ti, dens, linestyles='dashed', colors='k')
+    plt.clabel(contours, fontsize=fontsize, inline=1, fmt='%1.1f')  # label every second level
+    for cluster in np.sort(temp["label"].unique()):
+        cluster_points = temp[temp["label"] == cluster]
+        ax.scatter(x=cluster_points["abs_salinity"], y=cluster_points["cons_temperature"], c=cluster_points["color"],
+                   label=cluster, s=9, alpha=1, marker=".")
+    ax.set_xlabel('Absolute salinity [g/kg]', fontsize=fontsize)
+    ax.set_ylabel('Conservative temperature [°C]', fontsize=fontsize)
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
+
+    plt.subplots_adjust(left=adjust_left, right=adjust_right, top=adjust_top, bottom=adjust_bottom)
+    if ncols:
+        ax.legend(loc=legend_loc, title='Clusters', bbox_to_anchor=anchor, ncol=ncols, markerscale=5, frameon=False,
+                  handletextpad=0.1)
+
+    plt.tight_layout()
+    if save_as:
+        plt.savefig(save_as, dpi=dpi)
+    plt.show()
+
+
+def compare_stats(df, labels, vars=None, vars_map=None, save_as=None, sort_labels=True, dpi=600, figsize=(8, 6)):
+    """ Compare per-parameter-statistics of multiple labels of a clustering. """
+    if not vars:
+        vars = np.sort(['P_TEMPERATURE', 'P_SALINITY', 'P_OXYGEN', 'P_NITRATE', 'P_SILICATE', 'P_PHOSPHATE'])
+        vars_map = {"P_TEMPERATURE": "Temperature", "P_SALINITY": "Salinity", "P_OXYGEN": "Oxygen",
+                    "P_NITRATE": "Nitrate", "P_SILICATE": "Silicate", "P_PHOSPHATE": "Phosphate"}
+
+    temp = df[df.label.isin(labels)]  # Filter for the given interesting regions
+    scaler = MinMaxScaler().fit(temp[vars])  # Define scaler for the regions
+    temp_s = pd.DataFrame(scaler.transform(temp[vars]), columns=vars, index=temp.index)  # Scale data for comparability
+    temp_s["label"] = temp["label"]  # Adding label information
+    temp_m = pd.melt(temp_s, id_vars=["label"], value_vars=vars)  # Wide to long format
+    if vars_map:
+        temp_m.variable = temp_m.variable.map(vars_map)  # Renaming
+
+    # Define colors according to original ones
+    my_pal = {}
+    for label in labels:
+        my_pal[label] = df[df.label == label].iloc[0].color
+
+    # Define sequence of labels
+    if sort_labels:
+        labels = np.sort(labels)
+
+    # Rename axis so it looks nice on the legend
+    temp_m = temp_m.rename(columns={"label": "Clusters"})
+
+    # plot
+    plt.figure(figsize=figsize)
+    bp = sns.boxplot(temp_m, x="variable", y="value", hue="Clusters", palette=my_pal, flierprops={"marker": "."},
+                     hue_order=labels)
+    sns.move_legend(bp, "lower left")
+    plt.xlabel("")
+    plt.ylabel("Scaled value")
+    plt.tight_layout()
+    if save_as:
+        plt.savefig(save_as, dpi=dpi)
+    plt.show()
