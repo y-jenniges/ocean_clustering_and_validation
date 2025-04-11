@@ -138,7 +138,7 @@ scatter_size = 2
 margin = 5
 
 # Load labels
-iteration = 1
+iteration = 0
 labels = load_dbscan_labels(iteration)
 labels = prepare_labels_df(labels, iteration=iteration)
 
