@@ -1,6 +1,10 @@
 import logging
 import pandas as pd
 
+# -------------------------------------------------------------------------------------------------------------------- #
+# Utility functions to work with the COMFORT database
+# -------------------------------------------------------------------------------------------------------------------- #
+
 
 def get_table_as_df(conn, table_name, columns=None):
     """
@@ -18,13 +22,17 @@ def get_table_as_df(conn, table_name, columns=None):
     if columns:
         col_selection = ", ".join(columns)
 
+    # Define query
     query = f"select {col_selection} from {table_name};"
     cur = conn.cursor()
     ex = cur.execute(query)
     cols = [description[0] for description in cur.description]
 
+    # Execute query
     result = ex.fetchall()
     df = pd.DataFrame(result, columns=cols)
+    cur.close()
+
     return df
 
 
@@ -43,7 +51,6 @@ def get_num_samples(conn, table_names):
     query = "SELECT " + " + ".join([f"(SELECT COUNT(*) FROM {x})" for x in table_names]) + ";"
     ex = cur.execute(query)
     num_samples = ex.fetchall()[0][0]
-
     cur.close()
 
     return num_samples
@@ -98,6 +105,8 @@ def remove_tables_like(conn, like_pattern="E|_%", escape_char="|", table_type="t
         print(f"Structure.remove_tables_like: {query}")
         cur.execute(query)
 
+    cur.close()
+
 
 def get_names_of_all_parameter_tables(conn, like_pattern="P|_%", escape_char="|", include_digits=False,
                                       table_type="table"):
@@ -134,9 +143,11 @@ def get_names_of_all_parameter_tables(conn, like_pattern="P|_%", escape_char="|"
 
     # Execute query
     logging.info(f"Information: {query}")
-    ex = conn.cursor().execute(query)
+    cur = conn.cursor()
+    ex = cur.execute(query)
     result = ex.fetchall()
     param_table_names = [entry[0] for entry in result]
+    cur.close()
 
     return param_table_names
 
@@ -150,13 +161,13 @@ def get_columns(conn, table):
         table (str): Name of table.
     """
     # Create cursor and get table info
-    cursor = conn.cursor()
-    cursor.execute(f"PRAGMA table_info({table});")
+    cur = conn.cursor()
+    cur.execute(f"PRAGMA table_info({table});")
 
     # Fetch column names
-    columns = [row[1] for row in cursor.fetchall()]
+    columns = [row[1] for row in cur.fetchall()]
 
     # Close cursor
-    cursor.close()
+    cur.close()
 
     return columns
