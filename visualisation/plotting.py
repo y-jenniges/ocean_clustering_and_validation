@@ -7,8 +7,8 @@ import numpy as np
 import glasbey
 
 
-# Potentially remove this one again?
 def plot_each_depth_level(df, color_label="water", save_as="output/grid_cells.png"):
+    """ Scatter plot for each depth level with a selectable color column. """
     # Show grid cells for every depth layer
     depths = df["LEV_M"].unique()
     lamin = df["LATITUDE"].min() - 5
@@ -16,10 +16,12 @@ def plot_each_depth_level(df, color_label="water", save_as="output/grid_cells.pn
     lomin = df["LONGITUDE"].min() - 5
     lomax = df["LONGITUDE"].max() + 5
 
+    # Create figure
     fig, axs = plt.subplots(nrows=4, ncols=3, figsize=(2 * 6, 10), sharex=True, sharey=True,
                             subplot_kw={'projection': ccrs.PlateCarree()})
     axs = axs.flatten()
 
+    # Plot every depth level
     for i in range(len(depths)):
         d = depths[i]
         sel = df[df["LEV_M"] == d]
@@ -27,19 +29,20 @@ def plot_each_depth_level(df, color_label="water", save_as="output/grid_cells.pn
         axs[i].coastlines()
         axs[i].gridlines(draw_labels=True)
         axs[i].set_extent([lomin, lomax, lamin, lamax], crs=ccrs.PlateCarree())
-        sc = axs[i].scatter(sel["LONGITUDE"], sel["LATITUDE"], s=0.5, c=sel[color_label])
+        axs[i].scatter(sel["LONGITUDE"], sel["LATITUDE"], s=0.5, c=sel[color_label])
         axs[i].set_title(f"{d}m")
 
+    # Show and save
     plt.tight_layout()
     if save_as:
         plt.savefig(save_as)
-    plt.show(block=True)
+    plt.show()
 
 
 def plot_embedding(embedding, color_label=None, alpha=0.08, size=2, save_as=None, figsize=(6, 6), fontsize=8,
                    ticklabelsize=8, dpi=1000):
     """ Plot a 2d or 3d embedding. (It can be a pandas.DataFrame or a numpy.array.) """
-    # determine x, y, z, data and colour
+    # Determine x, y, z, data and colour
     if isinstance(embedding, pd.DataFrame):
         x = embedding["e0"]
         y = embedding["e1"]
@@ -51,7 +54,7 @@ def plot_embedding(embedding, color_label=None, alpha=0.08, size=2, save_as=None
         z = embedding[:, 2] if embedding.shape[1] == 3 else None
         c = color_label
 
-        # plot
+    # Define figure
     fig = plt.figure(figsize=figsize)
 
     # 3d
@@ -73,9 +76,9 @@ def plot_embedding(embedding, color_label=None, alpha=0.08, size=2, save_as=None
 
     plt.xlabel("X-axis", fontsize=fontsize)
     plt.ylabel("Y-axis", fontsize=fontsize)
-    ax.tick_params(axis='x', labelsize=ticklabelsize)  # , pad=tick_padding)
-    ax.tick_params(axis='y', labelsize=ticklabelsize)  # , pad=tick_padding)
-    ax.tick_params(axis='z', labelsize=ticklabelsize)  # , pad=tick_padding)
+    ax.tick_params(axis='x', labelsize=ticklabelsize)
+    ax.tick_params(axis='y', labelsize=ticklabelsize)
+    ax.tick_params(axis='z', labelsize=ticklabelsize)
     plt.tight_layout()
     plt.subplots_adjust(left=-0.01, right=0.92, top=1.1, bottom=0)
     if save_as:
@@ -86,6 +89,7 @@ def plot_embedding(embedding, color_label=None, alpha=0.08, size=2, save_as=None
 def plot_geo(df, color_label="color", save_as=None, figsize=(6, 6),
              adjust_left=0, adjust_right=0.92, adjust_top=1.1, adjust_bottom=-0.05, pointsize=0.5, dpi=600,
              xlabelpad=20, ylabelpad=0, zlabelpad=0):
+    """ 3d scatter plot of a cluster set with given colors. """
     # Define basemap
     mymap = Basemap(llcrnrlon=df["LONGITUDE"].min(), llcrnrlat=df["LATITUDE"].min(),
                     urcrnrlon=df["LONGITUDE"].max(), urcrnrlat=df["LATITUDE"].max(), fix_aspect=False)
