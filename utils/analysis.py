@@ -47,6 +47,8 @@ def get_user_input(u):
 
 
 def prepare_labels_df(labels_df, iteration=0):
+    """ Prepare labels dataframe by filtering for a given iteration, dropping NaN-columns and distributing labels
+     from different preprocessing methods to different columns. """
     temp = labels_df.copy()
 
     # Filter for labels from the given iteration
