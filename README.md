@@ -11,12 +11,12 @@ and one iteration of the clustering experiments ~15.5h.
 
 **File explanations**
 
-| File            | Description                                                                                | Required data                                      | 
-|-----------------|--------------------------------------------------------------------------------------------|----------------------------------------------------|
-| main.py         | Prepare the database, grid and impute data, conduct clustering and uncertainty experiments | comfort.sqlite^[1], GEBCO_2022_sub_ice_topo.nc^[2] |
-| config.py       | Parameter settings for database preparation, gridding and clustering                       |                                                    |
-| hyp_config.py   | Final hyperparameter settings of UMAP and clustering methods                               |                                                    |
-| environment.yml | Required Python libraries to run the code                                                  |                                                    |
+| File            | Description                                                                                | Required data                                    | 
+|-----------------|--------------------------------------------------------------------------------------------|--------------------------------------------------|
+| main.py         | Prepare the database, grid and impute data, conduct clustering and uncertainty experiments | comfort.sqlite[1], GEBCO_2022_sub_ice_topo.nc[2] |
+| config.py       | Parameter settings for database preparation, gridding and clustering                       |                                                  |
+| hyp_config.py   | Final hyperparameter settings of UMAP and clustering methods                               |                                                  |
+| environment.yml | Required Python libraries to run the code                                                  |                                                  |
 
 <br>
 
@@ -25,4 +25,5 @@ For an **interactive dashboard visualisation** of the final clustering, refer to
 - Dashboard: https://ocean-cluster-dashboard.onrender.com
 
 [1] Korablev, A., Olsen, A., Geophysical Institute, University of Bergen, Bjerknes Centre for Climate Research (2022).COMFORT Dataset [Data set]. Norstore. https://doi.org/10.11582/2022.00039
+
 [2] GEBCO Bathymetric Compilation Group 2022(2022). The GEBCO_2022 Grid - a continuous terrain model of the global oceans and land. NERC EDS British Oceanographic Data Centre NOC. doi:10.5285/e0f0bb80-ab44-2739-e053-6c86abc0289c
