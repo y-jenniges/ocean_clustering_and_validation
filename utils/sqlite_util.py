@@ -2,6 +2,7 @@ import numpy as np
 
 
 class Median(object):
+    """ Aggregate function to compute the median in sqlite. """
 
     def __init__(self):
         self.median = None
@@ -16,6 +17,7 @@ class Median(object):
 
 
 class Std(object):
+    """ Aggregate function to compute the standard deviation in sqlite. """
 
     def __init__(self):
         self.std = None
