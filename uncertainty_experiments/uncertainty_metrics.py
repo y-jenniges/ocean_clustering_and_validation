@@ -44,14 +44,13 @@ def compute_f_clustering_accuracy(a, b, overlap_matrix):
     """ Compute F_clustering_accuracy between two cluster sets a and b. """
     N_a = len(a)
     N_b = len(b)
-    N = (N_a + N_b) / 2
 
     column_sum = np.array(overlap_matrix.sum(axis=0), dtype=float)
     row_sum = np.array(overlap_matrix.sum(axis=1), dtype=float)
 
     divider = np.array([column_sum] * len(row_sum)) + np.array([row_sum] * len(column_sum)).T
     factor = np.divide(1, divider, out=np.zeros(divider.shape),
-                       where=divider != 0)  # if dividing by zero, set the factor to zero instead
+                       where=divider != 0)  # If dividing by zero, set the factor to zero instead
     f = 2 * overlap_matrix * factor
 
     fca_ab = 1 / N_a * np.multiply(column_sum, f.max(axis=0)).sum()
@@ -157,11 +156,14 @@ def plot_uncertainty_metrics(prefix="fixedUmap_dbscan_", close_plots=True):
         close_plots (bool): Whether to only store the plots and directly close them or keep them open.
     """
     logging.info("Plotting uncertainty metrics...")
+
     # Load uncertainty metrics
     df_res = pd.read_csv(f"{config.output_dir_uncertainty}{prefix}uncertainty_metrics.csv")
 
+    # Figure size for all plots
     figsize = (6, 4)
 
+    # Plot F clustering accuracy
     plt.figure(figsize=figsize)
     sns.histplot(df_res.f_accuracy)
     plt.xlabel("F clustering accuracy")
@@ -170,8 +172,9 @@ def plot_uncertainty_metrics(prefix="fixedUmap_dbscan_", close_plots=True):
     if close_plots:
         plt.close()
     else:
-        plt.show()  # block=True)
+        plt.show()
 
+    # Plot Normalised Mutual Information
     plt.figure(figsize=figsize)
     sns.histplot(df_res.normalized_mutual_information)
     plt.xlabel("Normalised mutual information")
@@ -180,8 +183,9 @@ def plot_uncertainty_metrics(prefix="fixedUmap_dbscan_", close_plots=True):
     if close_plots:
         plt.close()
     else:
-        plt.show()  # block=True)
+        plt.show()
 
+    # Plot Overlap
     plt.figure(figsize=figsize)
     sns.histplot(df_res.overlap * 100)
     plt.xlabel("Overlap [%]")
@@ -191,8 +195,9 @@ def plot_uncertainty_metrics(prefix="fixedUmap_dbscan_", close_plots=True):
     if close_plots:
         plt.close()
     else:
-        plt.show()  # block=True)
+        plt.show()
 
+    # Print main metrics
     logging.info(
         f"  Mean F clustering accuracy is {df_res.f_accuracy.mean() * 100} +- {df_res.f_accuracy.std() * 100} %")
     logging.info(f"  Mean normalised mutual information is {df_res.normalized_mutual_information.mean() * 100} +- "

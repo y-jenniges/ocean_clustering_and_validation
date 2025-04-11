@@ -157,7 +157,7 @@ def compute_and_store_nemi_cluster_set(df, pack, base_id, prefix="volume_"):
         base_id (int): Base Id used for the NEMI method.
         prefix (str): Prefix used for filenames of the new cluster sets.
     """
-    filename = f"{config.output_dir_uncertainty}{prefix}nemi_iteration{base_id}.csv"
+    filename = f"{config.output_dir_nemi}{prefix}nemi_iteration{base_id}.csv"
 
     # Only do computations if the file does not exist
     if Path(filename).exists():
