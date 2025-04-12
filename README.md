@@ -24,6 +24,9 @@ For an **interactive dashboard visualisation** of the final clustering, refer to
 - Code: https://github.com/y-jenniges/ocean_cluster_dashboard
 - Dashboard: https://ocean-cluster-dashboard.onrender.com
 
+[![DOI](https://zenodo.org/badge/943827424.svg)](https://doi.org/10.5281/zenodo.15202343)
+[🌍 Dashboard](https://ocean-cluster-dashboard.onrender.com)
+
 [1] Korablev, A., Olsen, A., Geophysical Institute, University of Bergen, Bjerknes Centre for Climate Research (2022).COMFORT Dataset [Data set]. Norstore. https://doi.org/10.11582/2022.00039
 
 [2] GEBCO Bathymetric Compilation Group 2022(2022). The GEBCO_2022 Grid - a continuous terrain model of the global oceans and land. NERC EDS British Oceanographic Data Centre NOC. doi:10.5285/e0f0bb80-ab44-2739-e053-6c86abc0289c
