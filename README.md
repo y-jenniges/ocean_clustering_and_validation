@@ -25,7 +25,6 @@ For an **interactive dashboard visualisation** of the final clustering, refer to
 - Dashboard: https://ocean-cluster-dashboard.onrender.com
 
 [![DOI](https://zenodo.org/badge/943827424.svg)](https://doi.org/10.5281/zenodo.15202343)
-[🌍 Dashboard](https://ocean-cluster-dashboard.onrender.com)
 
 [1] Korablev, A., Olsen, A., Geophysical Institute, University of Bergen, Bjerknes Centre for Climate Research (2022).COMFORT Dataset [Data set]. Norstore. https://doi.org/10.11582/2022.00039
 
