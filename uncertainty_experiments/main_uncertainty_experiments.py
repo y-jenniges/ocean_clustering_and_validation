@@ -10,7 +10,7 @@ from sklearn.cluster import DBSCAN
 
 import config
 import hyp_config
-from uncertainty_experiments.uncertainty_metrics import compute_uncertainty_metrics, plot_uncertainty_metrics
+from uncertainty_experiments.uncertainty_metrics import compute_uncertainty_metrics_on_files, plot_uncertainty_metrics
 from uncertainty_experiments.uncertainty_nemi import compute_and_store_nemi_cluster_set, compute_volume
 
 
@@ -128,12 +128,12 @@ def run_uncertainty_experiments(df):
 
     # Run DBSCAN on fixed UMAP
     run_dbscan_on_fixed_umap(df)
-    compute_uncertainty_metrics(prefix="fixedUmap_dbscan_", ignore_noise=False)
+    compute_uncertainty_metrics_on_files(prefix="fixedUmap_dbscan_", ignore_noise=False)
     plot_uncertainty_metrics(prefix="fixedUmap_dbscan_")
 
     # Run UMAP-DBSCAN multiple times
     run_dbscan_on_umap(df)
-    compute_uncertainty_metrics(prefix="umap_dbscan_", ignore_noise=False)
+    compute_uncertainty_metrics_on_files(prefix="umap_dbscan_", ignore_noise=False)
     plot_uncertainty_metrics(prefix="umap_dbscan_")
     logging.info("Finished uncertainty experiments.")
 

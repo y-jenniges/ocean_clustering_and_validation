@@ -5,6 +5,7 @@ from time import time
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
+from sklearn.metrics import adjusted_rand_score
 
 import config
 
@@ -80,16 +81,64 @@ def compute_entropies(a, b, overlap_matrix):
     mi = h_a + h_b - h_ab  # Mutual information
     vi = h_a + h_b - 2 * mi  # Variation of information
 
-    # Normalised mutual information
-    if max(h_a, h_b) == 0:
+    # Normalised mutual information (similar to sklearn implementation)
+    if (h_a + h_b) == 0:
         nmi = 0
     else:
-        nmi = mi / max(h_a, h_b)
+        nmi = 2 * mi / (h_a + h_b)
 
     return mi, vi, nmi
 
 
-def compute_uncertainty_metrics(prefix="fixedUmap_dbscan_", ignore_noise=True):
+def compute_uncertainty_metrics(clustering_a, clustering_b, label_a="label", label_b="label", ignore_noise=True):
+    """ Computes uncertainty metrics: F clustering accuracy, normalised mutual information, adjusted Rand score and
+    overlap for two given cluster sets.
+
+     Args:
+        clustering_a (pandas.DataFrame): First cluster set for comparison.
+        clustering_b (pandas.DataFrame): Second cluster set for comparison.
+        label_a (str): Name of the column in clustering_a containing cluster labels.
+        label_b (str): Name of the column in clustering_b containing cluster labels.
+        ignore_noise (bool): Whether to ignore or keep DBSCAN noise (label: -1).
+    """
+    logging.info(f"Compute uncertainty metrics...")
+
+    # Unify data types to enable seamless merging
+    merge_columns = ["LATITUDE", "LONGITUDE", "LEV_M"]
+    clustering_a[merge_columns] = clustering_a[merge_columns].round(2)
+    clustering_b[merge_columns] = clustering_b[merge_columns].round(2)
+    clustering_a[label_a] = clustering_a[label_a].astype(int)
+    clustering_b[label_b] = clustering_b[label_b].astype(int)
+
+    # Ignore noise cluster
+    if ignore_noise:
+        clustering_a = clustering_a[clustering_a[label_a] != -1]
+        clustering_b = clustering_b[clustering_b[label_b] != -1]
+
+    # Rename label columns
+    clustering_a = clustering_a.rename(columns={label_a: "label"})
+    clustering_b = clustering_b.rename(columns={label_b: "label"})
+
+    # Compute overlap matrix
+    overlap_matrix = compute_overlap_matrix(a=clustering_a, b=clustering_b)
+
+    # Compute uncertainty metrics
+    overlap_ab, overlap_ba, symmetric_overlap = compute_overlap(a=clustering_a, b=clustering_b,
+                                                                overlap_matrix=overlap_matrix)
+    fca_ab, fca_ba, fca = compute_f_clustering_accuracy(clustering_a, clustering_b, overlap_matrix)
+    mi, vi, nmi = compute_entropies(clustering_a, clustering_b, overlap_matrix)
+    ar = adjusted_rand_score(clustering_a["label"], clustering_a["label"])
+
+    return pd.DataFrame({"overlap_ab": [overlap_ab], "overlap_ba": [overlap_ba],
+                         "overlap": [symmetric_overlap],
+                         "f_accuracy_ab": [fca_ab], "f_accuracy_ba": [fca_ba], "f_accuracy": [fca],
+                         "mutual_information": [mi], "variation_of_information": [vi],
+                         "normalized_mutual_information": [nmi],
+                         "adjusted_rand_score": [ar]
+                         })
+
+
+def compute_uncertainty_metrics_on_files(prefix="fixedUmap_dbscan_", ignore_noise=True):
     """ Computes uncertainty metrics: F clustering accuracy, normalised mutual information and overlap by comparing
      existing cluster sets (loaded from files).
 
@@ -126,17 +175,19 @@ def compute_uncertainty_metrics(prefix="fixedUmap_dbscan_", ignore_noise=True):
                 # Compute overlap matrix
                 overlap_matrix = compute_overlap_matrix(a=clustering_a, b=clustering_b)
 
-                # Compute overlap
+                # Compute uncertainty metrics
                 overlap_ab, overlap_ba, symmetric_overlap = compute_overlap(a=clustering_a, b=clustering_b,
                                                                             overlap_matrix=overlap_matrix)
                 fca_ab, fca_ba, fca = compute_f_clustering_accuracy(clustering_a, clustering_b, overlap_matrix)
                 mi, vi, nmi = compute_entropies(clustering_a, clustering_b, overlap_matrix)
+                ar = adjusted_rand_score(clustering_a["label"], clustering_a["label"])
                 df_res.append(pd.DataFrame({"clustering_a": [i], "clustering_b": [j],
                                             "overlap_ab": [overlap_ab], "overlap_ba": [overlap_ba],
                                             "overlap": [symmetric_overlap],
                                             "f_accuracy_ab": [fca_ab], "f_accuracy_ba": [fca_ba], "f_accuracy": [fca],
-                                            "mutual_infomration": [mi], "variation_of_information": [vi],
-                                            "normalized_mutual_information": [nmi]
+                                            "mutual_information": [mi], "variation_of_information": [vi],
+                                            "normalized_mutual_information": [nmi],
+                                            "adjusted_rand_score": [ar]
                                             }))
 
     # Store results
