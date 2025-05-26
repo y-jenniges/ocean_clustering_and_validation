@@ -19,10 +19,67 @@ def create_output_directories():
     Path(config.output_dir_uncertainty).mkdir(parents=True, exist_ok=True)
 
 
+import numpy as np
+from sklearn.neighbors import kneighbors_graph
+from sklearn.cluster import AgglomerativeClustering
+import copy
+
+
+def add_spatially_constrained_ward_to_config(df_in,
+                                             lat_col="LATITUDE", lon_col="LONGITUDE", depth_col="LEV_M",
+                                             depth_scale=1000.0, n_neighbors=10,
+                                             algorithm_name="spatial_ward"):
+    """
+    Adds a spatially constrained AgglomerativeClustering (Ward) entry to config.algorithms_and_hyps.
+
+    Args:
+    - df_in: pandas DataFrame with 'lat', 'lon', 'depth' columns
+    - config: config object with .algorithms_and_hyps dict
+    - lat_col, lon_col, depth_col: names of the spatial columns
+    - depth_scale: scale depth to kilometers (default: 1000)
+    - n_neighbors: neighbors for k-NN graph
+    - algorithm_name: key name to add to config
+
+    Returns:
+    - updated_algorithms: new dictionary including the spatial_ward algorithm
+    """
+    logging.info("Compute spatial connectivity matrix...")
+
+    # Convert lat/lon to radians
+    lat_rad = np.radians(df_in[lat_col].values)
+    lon_rad = np.radians(df_in[lon_col].values)
+
+    # Project to 3D Cartesian coordinates (Earth radius in km)
+    R = 6371.0
+    x = R * np.cos(lat_rad) * np.cos(lon_rad)
+    y = R * np.cos(lat_rad) * np.sin(lon_rad)
+    z = R * np.sin(lat_rad)
+
+    # Include scaled depth as 4th dimension
+    depth_scaled = df_in[depth_col].values / depth_scale
+    X_spatial = np.vstack([x, y, z, depth_scaled]).T
+
+    # Build connectivity graph
+    connectivity_matrix = kneighbors_graph(X_spatial, n_neighbors=n_neighbors, include_self=False)
+
+    # Copy the algorithm config and add new entry
+    updated_algorithms = copy.deepcopy(config.algorithms_and_hyps)
+    updated_algorithms[algorithm_name] = (
+        AgglomerativeClustering,
+        {
+            "n_clusters": range(2, 31),
+            "linkage": ["ward"],
+            "connectivity": [connectivity_matrix]
+        }
+    )
+
+    return updated_algorithms
+
+
 if __name__ == "__main__":
-    prepare_data = True
+    prepare_data = False
     run_clusterings = True
-    run_uncertainties = True
+    run_uncertainties = False
 
     # Create all output directories
     print("Creating output directories...")
@@ -56,9 +113,13 @@ if __name__ == "__main__":
                             handlers=[logging.FileHandler(config.output_dir + "logs_clustering.log"),
                                       logging.StreamHandler(stream=sys.stdout)])
 
+        # Add spatially constrained Ward to config
+        algorithms_with_spatial = add_spatially_constrained_ward_to_config(df)
+
+        # Run experiments
         run_clustering_experiments(df=df,
                                    preprocessing_steps=config.preprocessings,
-                                   clustering_algorithms=config.algorithms_and_hyps,
+                                   clustering_algorithms=algorithms_with_spatial,
                                    n_iterations=config.n_iterations,
                                    scores=config.scores,
                                    store_labels=True)
