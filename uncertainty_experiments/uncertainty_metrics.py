@@ -97,8 +97,8 @@ def compute_uncertainty_metrics(clustering_a, clustering_b, label_a="label", lab
      Args:
         clustering_a (pandas.DataFrame): First cluster set for comparison.
         clustering_b (pandas.DataFrame): Second cluster set for comparison.
-        label_a (str): Name of the column in clustering_a containing cluster labels.
-        label_b (str): Name of the column in clustering_b containing cluster labels.
+        label_a (str): Name of the column in clustering_a containing int cluster labels.
+        label_b (str): Name of the column in clustering_b containing int cluster labels.
         ignore_noise (bool): Whether to ignore or keep DBSCAN noise (label: -1).
     """
     logging.info(f"Compute uncertainty metrics...")
@@ -107,8 +107,8 @@ def compute_uncertainty_metrics(clustering_a, clustering_b, label_a="label", lab
     merge_columns = ["LATITUDE", "LONGITUDE", "LEV_M"]
     clustering_a[merge_columns] = clustering_a[merge_columns].round(2)
     clustering_b[merge_columns] = clustering_b[merge_columns].round(2)
-    clustering_a[label_a] = clustering_a[label_a].astype(int)
-    clustering_b[label_b] = clustering_b[label_b].astype(int)
+    clustering_a.loc[:, label_a] = clustering_a.loc[:, label_a].astype(int)
+    clustering_b.loc[:, label_b] = clustering_b.loc[:, label_b].astype(int)
 
     # Ignore noise cluster
     if ignore_noise:
@@ -127,7 +127,7 @@ def compute_uncertainty_metrics(clustering_a, clustering_b, label_a="label", lab
                                                                 overlap_matrix=overlap_matrix)
     fca_ab, fca_ba, fca = compute_f_clustering_accuracy(clustering_a, clustering_b, overlap_matrix)
     mi, vi, nmi = compute_entropies(clustering_a, clustering_b, overlap_matrix)
-    ar = adjusted_rand_score(clustering_a["label"], clustering_a["label"])
+    ar = adjusted_rand_score(clustering_a["label"], clustering_b["label"])
 
     return pd.DataFrame({"overlap_ab": [overlap_ab], "overlap_ba": [overlap_ba],
                          "overlap": [symmetric_overlap],
