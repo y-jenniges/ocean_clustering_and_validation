@@ -1,6 +1,4 @@
 import matplotlib.pyplot as plt
-from mpl_toolkits.basemap import Basemap
-import plotly.graph_objects as go
 import cartopy.crs as ccrs
 import pandas as pd
 import numpy as np
@@ -8,6 +6,9 @@ import glasbey
 import gsw
 import seaborn as sns
 from sklearn.preprocessing import MinMaxScaler
+import plotly.graph_objects as go
+from shapely.geometry import box
+from cartopy.io import shapereader
 
 
 def plot_each_depth_level(df, color_label="water", save_as="output/grid_cells.png"):
@@ -93,15 +94,47 @@ def plot_geo(df, color_label="color", save_as=None, figsize=(6, 6),
              adjust_left=0, adjust_right=0.92, adjust_top=1.1, adjust_bottom=-0.05, pointsize=0.5, dpi=600,
              xlabelpad=20, ylabelpad=0, zlabelpad=0):
     """ 3d scatter plot of a cluster set with given colors. """
-    # Define basemap
-    mymap = Basemap(llcrnrlon=df["LONGITUDE"].min(), llcrnrlat=df["LATITUDE"].min(),
-                    urcrnrlon=df["LONGITUDE"].max(), urcrnrlat=df["LATITUDE"].max(), fix_aspect=False)
 
-    # Geographical plot
+    # Define figure and plot grid cells as scatter points
     fig = plt.figure(figsize=figsize)
     ax = fig.add_subplot(projection='3d')
-    ax.scatter(df["LONGITUDE"], df["LATITUDE"], df["LEV_M"], c=df[color_label], s=pointsize, alpha=1, zorder=4)
-    ax.add_collection3d(mymap.drawcoastlines(linewidth=0.5))
+    ax.scatter(df["LONGITUDE"], df["LATITUDE"], df["LEV_M"], c=df[color_label], s=pointsize, alpha=1, zorder=1)
+
+    # Get coastlines from Cartopy feature
+    # Create a bounding box for the data region
+    bbox = box(df["LONGITUDE"].min(), df["LATITUDE"].min(), df["LONGITUDE"].max(), df["LATITUDE"].max())
+
+    # Get cartopy coastline
+    shpfilename = shapereader.natural_earth(resolution="110m", category="physical", name="coastline")
+    reader = shapereader.Reader(shpfilename)
+
+    # Loop through geometries and clip to desired range
+    for record in reader.records():
+        # Clip geometry to desited range
+        geom = record.geometry.intersection(bbox)
+
+        # Skip geometry, if no intersection with desired range
+        if geom.is_empty:
+            continue
+
+        # Convert geometry to a list of lines
+        if geom.geom_type == "MultiLineString":
+            lines = geom.geoms
+        elif geom.geom_type == "LineString":
+            lines = [geom]
+        else:
+            continue  # skip if it's not a line
+
+        # Add each line to the plot
+        for line in lines:
+            x, y = line.xy
+            z = np.full_like(x, 0.0)  # Place at surface
+            ax.plot(x, y, z, color='black', linewidth=1.5, zorder=10)
+
+    # Set axis limits
+    ax.set_xlim(df["LONGITUDE"].min(), df["LONGITUDE"].max())
+    ax.set_ylim(df["LATITUDE"].min(), df["LATITUDE"].max())
+
     ax.set_box_aspect((np.ptp(df["LONGITUDE"]), np.ptp(df["LATITUDE"]), np.ptp(df["LEV_M"]) / 50))
 
     # Add axis labels
@@ -330,3 +363,52 @@ def compare_stats(df, labels, vars=None, vars_map=None, save_as=None, sort_label
     if save_as:
         plt.savefig(save_as, dpi=dpi)
     plt.show()
+
+
+def plot_sankey(df, source_col="label", target_col="emu_label",
+                source_name="Our Cluster Set", target_name="EMU",
+                figsize=(10, 6), save_as=None, dpi=100):
+    # Convert labels to string (-> avoid integer issues)
+    df[source_col] = df[source_col].astype(str)
+    df[target_col] = df[target_col].astype(str)
+
+    # Create all unique labels and index mapping
+    all_labels = pd.Series(pd.concat([df[source_col], df[target_col]])).unique()
+    label_to_index = {label: idx for idx, label in enumerate(all_labels)}
+
+    # Count flows
+    flow_counts = df.groupby([source_col, target_col]).size().reset_index(name="count")
+    flow_counts["source_idx"] = flow_counts[source_col].map(label_to_index)
+    flow_counts["target_idx"] = flow_counts[target_col].map(label_to_index)
+
+    # Convert figsize to pixels
+    width_px = int(figsize[0] * 96)
+    height_px = int(figsize[1] * 96)
+
+    # Create Sankey diagram
+    fig = go.Figure(data=[go.Sankey(
+        node=dict(
+            pad=15,
+            thickness=15,
+            line=dict(color="black", width=0.5),
+            label=list(label_to_index.keys()),
+            color="blue"
+        ),
+        link=dict(
+            source=flow_counts["source_idx"],
+            target=flow_counts["target_idx"],
+            value=flow_counts["count"]
+        )
+    )])
+
+    fig.update_layout(
+        title_text=f"Sankey Diagram: {source_name} - {target_name}",
+        font_size=10,
+        width=width_px,
+        height=height_px
+    )
+    fig.show()
+
+    # Optionally save diagram
+    if save_as:
+        fig.write_image(save_as, scale=dpi / 100)
