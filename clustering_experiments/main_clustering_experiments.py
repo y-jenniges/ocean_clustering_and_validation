@@ -9,7 +9,8 @@ from pathlib import Path
 import config
 
 
-def run_clustering_experiments(df, preprocessing_steps, clustering_algorithms, n_iterations, scores, store_labels=False):
+def run_clustering_experiments(df, preprocessing_steps, clustering_algorithms, n_iterations, scores,
+                               store_labels=False):
     """
     Perform clustering experiments by building Pipelines with the given models.
 
@@ -19,7 +20,6 @@ def run_clustering_experiments(df, preprocessing_steps, clustering_algorithms, n
         clustering_algorithms (dict): Name and model(s) to run for clustering.
         n_iterations (int): How often each clustering experiment with each hyperparameter combination will be repeated.
         scores (dict): Name and model to run for internal validation.
-        output_dir (str): Directory where to store results.
         store_labels (bool): Whether to store clustering labels or not (default is False).
     """
     logging.info("Starting clustering experiments...")
@@ -78,10 +78,13 @@ def run_clustering_experiments(df, preprocessing_steps, clustering_algorithms, n
                         transformed_data = pipeline[:-1].transform(data)
 
                         for score_name, score_model in scores.items():
+                            logging.info(f"          {score_name}")
+                            st = time()
                             if nclusters > 1:
                                 score = score_model(transformed_data, labels)
                             else:
                                 score = np.nan
+                            logging.info(f"          Score computed in: {time() - st}")
                             score_dict[score_name] = score
                         end_time_scores = time()
 
