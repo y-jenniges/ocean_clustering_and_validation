@@ -114,7 +114,7 @@ if __name__ == "__main__":
                                       logging.StreamHandler(stream=sys.stdout)])
 
         # Add spatially constrained Ward to config
-        algorithms_with_spatial = add_spatially_constrained_ward_to_config(df)
+        algorithms_with_spatial = add_spatially_constrained_ward_to_config(df, n_neighbors=21)
 
         # Run experiments
         run_clustering_experiments(df=df,
