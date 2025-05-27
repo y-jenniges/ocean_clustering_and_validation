@@ -46,10 +46,19 @@ def run_clustering_experiments(df, preprocessing_steps, clustering_algorithms, n
 
                 # Iterate over hyperparameter combinations
                 for hyp_params in hyp_param_combinations:
+                    # Generate output filename
+                    if "connectivity" in hyp_params.keys():
+                        # Do not use connectivity matrix for file name
+                        temp_hyps = {k: v for k, v in hyp_params.items() if k != "connectivity"}
+                        result_file_path = f"{config.output_dir_clustering}/internal_validation_iteration{i}_" \
+                                           f"{preproc_name}_{cluster_name}_" \
+                                           f"{'_'.join([f'{k}{v}' for k, v in temp_hyps.items()])}_connectivity.csv"
+                    else:
+                        result_file_path = f"{config.output_dir_clustering}/internal_validation_iteration{i}_" \
+                                           f"{preproc_name}_{cluster_name}_" \
+                                           f"{'_'.join([f'{k}{v}' for k, v in hyp_params.items()])}.csv"
+
                     # Check if result file already exists
-                    result_file_path = f"{config.output_dir_clustering}/internal_validation_iteration{i}_" \
-                                       f"{preproc_name}_{cluster_name}_" \
-                                       f"{'_'.join([f'{k}{v}' for k, v in hyp_params.items()])}.csv"
                     if not Path(result_file_path).is_file():
                         # Reset results
                         results = []
