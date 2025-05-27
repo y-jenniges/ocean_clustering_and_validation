@@ -233,6 +233,37 @@ def plot_interactive_geo(df, column="label", color_label="color", scatter_size=3
     figure_geo.show()
 
 
+def plot_interactive_embedding(df, color_label=None, scatter_size=1, save_as=None):
+    # Define plot parameters
+    if color_label:
+        plot_params = {"x": df["e0"], "y": df["e1"], "z": df["e2"], "mode": "markers",
+                       "marker": dict(size=scatter_size, opacity=0.8), "color": df[color_label]}
+
+    else:
+        plot_params = {"x": df["e0"], "y": df["e1"], "z": df["e2"], "mode": "markers",
+                       "marker": dict(size=scatter_size, opacity=0.8)}
+
+    # Create 3D scatter plot
+    fig = go.Figure(data=[go.Scatter3d(**plot_params)])
+
+    # Customize layout
+    fig.update_layout(
+        title=f"Embedding",
+        scene=dict(
+            xaxis_title="X-Axis",
+            yaxis_title="Y-Axis",
+            zaxis_title="Z-Axis"
+        )
+    )
+
+    # Save
+    if save_as:
+        fig.write_html(save_as)
+
+    # Show in browser
+    fig.show()
+
+
 def coupled_label_plot(df, color_label="color", save_dir=None, suffix="", save_as=None, figsize=(6, 6),
                        fontsize=8, ticklabelsize=8,
                        adjust_left=0, adjust_right=0.92, adjust_top=1.1, adjust_bottom=-0.05, pointsize=0.5, dpi=1000,
