@@ -122,9 +122,17 @@ def run_clustering_experiments(df, preprocessing_steps, clustering_algorithms, n
 
                         # Store clustering labels
                         if store_labels:
-                            label_file_path = f"{config.output_dir_clustering}/labels_iteration{i}_"\
-                                              f"{preproc_name}_{cluster_name}_" \
-                                              f"{'_'.join([f'{k}{v}' for k, v in hyp_params.items()])}.csv"
+                            if "connectivity" in hyp_params.keys():
+                                # Do not use connectivity matrix for file name
+                                temp_path = {k: v for k, v in hyp_params.items() if k != "connectivity"}
+                                label_file_path = f"{config.output_dir_clustering}/labels_iteration{i}_" \
+                                                  f"{preproc_name}_{cluster_name}_" \
+                                                  f"{'_'.join([f'{k}{v}' for k, v in temp_path.items()])}" \
+                                                  f"_connectivity.csv"
+                            else:
+                                label_file_path = f"{config.output_dir_clustering}/labels_iteration{i}_"\
+                                                  f"{preproc_name}_{cluster_name}_" \
+                                                  f"{'_'.join([f'{k}{v}' for k, v in hyp_params.items()])}.csv"
 
                             # Create a dataframe containing labels and geo coordinates
                             labels_df = pd.DataFrame(labels, columns=["label"])
