@@ -237,7 +237,7 @@ def plot_interactive_embedding(df, color_label=None, scatter_size=1, save_as=Non
     # Define plot parameters
     if color_label:
         plot_params = {"x": df["e0"], "y": df["e1"], "z": df["e2"], "mode": "markers",
-                       "marker": dict(size=scatter_size, opacity=0.8), "color": df[color_label]}
+                       "marker": dict(size=scatter_size, opacity=0.8, color=df[color_label])}
 
     else:
         plot_params = {"x": df["e0"], "y": df["e1"], "z": df["e2"], "mode": "markers",
