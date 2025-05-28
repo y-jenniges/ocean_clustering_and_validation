@@ -1,7 +1,7 @@
 import pandas as pd
 import logging
 import numpy as np
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import RobustScaler
 from sklearn.impute import KNNImputer
 
 
@@ -30,7 +30,7 @@ def impute_data(csv_path, parameters, drop_columns, output_dir):
     space_time_cols = [c for c in ["LATITUDE", "LONGITUDE", "LEV_M", "DATEANDTIME"] if c in df.columns]
 
     # Scale parameters
-    scaler = MinMaxScaler().fit(df[parameters + space_time_cols])
+    scaler = RobustScaler().fit(df[parameters + space_time_cols])
     scaled = scaler.transform(df[parameters + space_time_cols])
 
     # Impute missing values using KNN
