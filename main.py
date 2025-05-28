@@ -5,6 +5,10 @@ from time import time
 from pathlib import Path
 from clustering_experiments.main_clustering_experiments import run_clustering_experiments
 from preparation.preparation import grid_and_impute_data, prepare_database
+import numpy as np
+from sklearn.neighbors import kneighbors_graph
+from sklearn.cluster import AgglomerativeClustering
+import copy
 
 import config
 from uncertainty_experiments.main_uncertainty_experiments import run_uncertainty_experiments
@@ -17,12 +21,6 @@ def create_output_directories():
     Path(config.output_dir_plots).mkdir(parents=True, exist_ok=True)
     Path(config.output_dir_plots_high_res).mkdir(parents=True, exist_ok=True)
     Path(config.output_dir_uncertainty).mkdir(parents=True, exist_ok=True)
-
-
-import numpy as np
-from sklearn.neighbors import kneighbors_graph
-from sklearn.cluster import AgglomerativeClustering
-import copy
 
 
 def add_spatially_constrained_ward_to_config(df_in,
