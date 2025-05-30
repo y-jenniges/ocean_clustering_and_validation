@@ -1,12 +1,12 @@
 import numpy as np
 from umap import UMAP
-from sklearn.preprocessing import MinMaxScaler, RobustScaler
-from sklearn.cluster import KMeans, DBSCAN, AgglomerativeClustering, OPTICS
+from sklearn.preprocessing import RobustScaler
+from sklearn.cluster import KMeans, DBSCAN, AgglomerativeClustering
 from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
-# from measures.CDR_index import CDR_Index
-# from measures.CVNN import CVNN_halkidi
-# from measures.dbcv_measures import DBCV
-from clustering_experiments.cvis import kdbcv, cdr, cvnn_halkidi
+from measures.CDR_index import CDR_Index
+from measures.CVNN import CVNN_halkidi
+from measures.dbcv_measures import DBCV
+from validation.cvis import kdbcv, cdr, cvnn_halkidi
 
 
 # Output directories
@@ -71,10 +71,10 @@ algorithms_and_hyps = {"kmeans": (KMeans, {"n_clusters": list(range(2, 16)) + [2
 scores = {"silhouette": silhouette_score,
           "davies_bouldin": davies_bouldin_score,
           "calinski_harabasz": calinski_harabasz_score,
-          "dbcv": kdbcv,  # DBCV().score,
-          "cvnn_hal": cvnn_halkidi,  # CVNN_halkidi().score,
-          "cdr": cdr
-          }  # CDR_Index().score}
+          "dbcv": DBCV().score,
+          "cvnn_hal": CVNN_halkidi().score,
+          "cdr": CDR_Index().score
+          }
 
 # Configuration for uncertainty experiments
 n_iterations_uncertainty = 100
