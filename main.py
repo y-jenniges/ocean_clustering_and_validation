@@ -1,3 +1,9 @@
+import os
+# Set thread limits
+os.environ["OPENBLAS_NUM_THREADS"] = "4"
+os.environ["OMP_NUM_THREADS"] = "4"
+os.environ["MKL_NUM_THREADS"] = "4"
+os.environ["NUMEXPR_NUM_THREADS"] = "4"
 import sys
 import logging
 import pandas as pd
