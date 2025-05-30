@@ -1,6 +1,3 @@
-from sklearn.datasets import make_moons
-from sklearn.cluster import DBSCAN
-import matplotlib.pyplot as plt
 from scipy.spatial.distance import pdist, squareform
 from scipy.sparse.csgraph import minimum_spanning_tree
 from scipy.spatial import cKDTree
@@ -12,108 +9,124 @@ from sklearn.metrics import pairwise_distances
 import warnings
 from copy import copy
 
-# from measures.CDR_index import CDR_Index
-# from measures.CVNN import CVNN_halkidi
-# from measures.dbcv_measures import DBCV
+
+""" 
+The following scores (cvnn_halkidi, cdr, dbcv_measure) are adaptions of the implementation at 
+https://github.com/g-schlake/ASCVI/ from 
+Schlake, Georg Stefan, and Christian Beecks. "Validating Arbitrary Shaped Clusters-A Survey." 2024 IEEE
+11th International Conference on Data Science and Advanced Analytics (DSAA). IEEE, 2024.
+https://doi.org/10.1109/DSAA61799.2024.10722773
+"""
 
 
-# https://github.com/g-schlake/ASCVI/
 def cvnn_halkidi(X, labels, k=None):
     """
-    CVNN (Corrected Variance of Nearest Neighbors) from:
-    Schlake et al. (2024), based on Halkidi et al. (2015) formulation.
+    CVNN (Corrected Variance of Nearest Neighbors). Adapted from https://github.com/g-schlake/ASCVI/,
+    Schlake, Georg Stefan, and Christian Beecks. "Validating Arbitrary Shaped Clusters-A Survey." 2024 IEEE
+    11th International Conference on Data Science and Advanced Analytics (DSAA). IEEE, 2024.
+    https://doi.org/10.1109/DSAA61799.2024.10722773
 
-    Parameters:
-    - X : np.ndarray
-        Feature matrix of shape (n_samples, n_features)
-    - labels : np.ndarray
-        Cluster labels (noise = -1 will be ignored)
-    - k : int, optional
-        Number of nearest neighbors; auto-chosen if None
+    Original reference: Halkidi, Maria, Michalis Vazirgiannis, and Christian Hennig.
+    "Method-independent indices for cluster validation and estimating the number of clusters."
+    Handbook of cluster analysis. Chapman and Hall/CRC, 2015. 616-639.
+    eBook ISBN 9780429185472
+
+    Args:
+        X (np.ndarray): Feature matrix of shape (n_samples, n_features)
+        labels (np.ndarray): Cluster labels (noise = -1 will be ignored)
+        k (int): optional, Number of nearest neighbors; auto-chosen if None
 
     Returns:
-    - float
-        CVNN score (lower = better clustering)
+        CVNN score (float): CVNN Halkidi Score (lower = better clustering)
     """
-    labels = np.asarray(labels)
-    unique_labels = np.unique(labels[labels != -1])  # ignore noise
-    n_samples = X.shape[0]
-    n_clusters = len(unique_labels)
+    labels = np.asarray(labels)  # Ensure labels is a numpy array
+    unique_labels = np.unique(labels[labels != -1])  # Get unique labels, exclude noise
+    n_samples = X.shape[0]  # Get number of samples
+    n_clusters = len(unique_labels)  # Number of unique labels
 
+    # Determine number of nearest neighbours
     if k is None:
         k = max(min(10, n_samples - 1), min(100, int(n_samples / (n_clusters * 100))))
-    k = min(k, n_samples - 1)
+    k = min(k, n_samples - 1)  # Ensure that k is <= n_samples -1
 
     # Compute full distance matrix
     dists = pairwise_distances(X)
 
-    # Nearest neighbors indices (excluding self)
+    # Nearest neighbours on feature space
     nbrs = NearestNeighbors(n_neighbors=k + 1).fit(X)
-    neighbor_indices = nbrs.kneighbors(X, return_distance=False)[:, 1:]  # skip self (first)
+    neighbor_indices = nbrs.kneighbors(X, return_distance=False)[:, 1:]  # Skip self (first)
 
-    comp = 0.0
-    nji = 0
-    sepj = []
+    comp = 0.0  # Compactness numerator (sum of intra-cluster distances)
+    nji = 0  # Number of cluster pairs
+    sepj = []  # Separation values of each cluster
 
     for cluster_id in unique_labels:
         cluster_mask = labels == cluster_id
+
+        # Count number of points in this cluster
         nj = np.sum(cluster_mask)
 
-        if nj < 2:
-            continue
+        # Skip clusters where intra-cluster distances cannot be computed
+        # if nj < 2:
+        #     continue
 
-        # Compactness: sum of all pairwise distances within cluster
+        # Compactness: Sum of all pairwise distances within cluster
         compj = np.sum(dists[cluster_mask][:, cluster_mask])
         comp += compj
         nji += nj * (nj - 1)
 
-        # Separation: fraction of neighbors not in same cluster
+        # Separation: Fraction of neighbors not in same cluster
         neighbors = neighbor_indices[cluster_mask]
         neighbor_labels = labels[neighbors]
         sep_fraction = np.sum(neighbor_labels != cluster_id) / (nj * k)
         sepj.append(sep_fraction)
 
-    if nji == 0:
-        compactness = 0
-    else:
-        compactness = comp / nji
+    # Final compactness term (corrected by number of pairs)
+    compactness = comp / nji if nji > 0 else 0.0
 
+    # Final separation term (worst-case cluster)
     separation = max(sepj) if sepj else 0
 
+    # CVNN score = separation + compactness
     return separation + compactness
 
 
 def cdr(X, labels, distance="euclidean", avg=True):
     """
-    CDR Index: Corrected Density-based clustering validation metric.
+    CDR Index: Corrected Density-based clustering validation metric. Adapted from https://github.com/g-schlake/ASCVI/,
+    Schlake, Georg Stefan, and Christian Beecks. "Validating Arbitrary Shaped Clusters-A Survey." 2024 IEEE
+    11th International Conference on Data Science and Advanced Analytics (DSAA). IEEE, 2024.
+    https://doi.org/10.1109/DSAA61799.2024.10722773
 
-    Reference:
+    Original reference:
     Rojas‐Thomas & Santos (2021), corrected as in ASCVI (Schlake et al. 2024)
 
-    Parameters:
-    - X: ndarray, shape (n_samples, n_features) or precomputed distance matrix
-    - labels: ndarray, shape (n_samples,), clustering labels
-    - distance: str, default='euclidean'. Set to 'precomputed' if X is a distance matrix
-    - avg: bool, whether to normalize intra-cluster variation by cluster size (ASCVI correction)
+    Args:
+        X (ndarray): (n_samples, n_features) array or precomputed distance matrix
+        labels (ndarray): (n_samples,) array of clustering labels
+        distance (str): Distance metric. Default='euclidean'. Set to 'precomputed' if X is a distance matrix
+        avg (bool): Whether to normalise intra-cluster variation by cluster size (ASCVI correction)
 
     Returns:
-    - float: CDR index value (lower is better)
+        CDR index (float): Score (lower is better)
     """
-    labels = np.asarray(labels)
-    unique_labels = np.unique(labels)
+    labels = np.asarray(labels)  # Ensure labels is a numpy array
+    unique_labels = np.unique(labels[labels != -1])  # Get unique labels, exclude noise
+    n_samples = len(labels)  # Get number of samples
+
+    # Compute distance matrix if not precomputed
     if distance != "precomputed":
         distances = pairwise_distances(X, metric=distance)
     else:
         distances = X.copy()
 
-    np.fill_diagonal(distances, np.inf)  # Avoid zero min distances to self
+    # Avoid self-distances
+    np.fill_diagonal(distances, np.inf)
 
+    # Numerator accumulator
     total_cdr = 0
-    n_total = len(labels)
 
     for cluster in unique_labels:
-        if cluster == -1:
-            continue  # Skip noise
 
         cluster_idx = np.where(labels == cluster)[0]
         n_cluster = len(cluster_idx)
@@ -121,50 +134,66 @@ def cdr(X, labels, distance="euclidean", avg=True):
         if n_cluster < 2:
             continue  # No variation to measure
 
+        # Extract intra-cluster distance matrix
         inner_dists = distances[cluster_idx][:, cluster_idx]
 
-        # Local density estimate: min distance to another in-cluster point
+        # Local density estimate: Min distance to another in-cluster point
         local_densities = np.min(inner_dists, axis=0)
 
         # Mean density
         mean_density = np.sum(local_densities) / n_cluster
 
-        # Deviation from mean
+        # Absolute deviation from mean
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=RuntimeWarning)
             deviation = np.abs(local_densities - mean_density)
+
+            # ASCVI correction: normalize deviation by cluster size
             numerator = np.sum(deviation)
             if avg:
-                numerator /= n_cluster  # ASCVI correction
+                numerator /= n_cluster
 
+            # Cluster's contribution to the total score
             cluster_score = numerator / mean_density if mean_density != 0 else 0
             total_cdr += n_cluster * cluster_score
 
-    if n_total == 0:
+    # Avoid division by zero (e.g. in case all labels are -1)
+    if n_samples == 0:
         return np.inf
 
-    return total_cdr / n_total
+    # Final CDR score = weighted average over all clusters
+    return total_cdr / n_samples
 
 
-def dbcv_measure(data=None, dists=None, labels=None, dim=2, mode='score'):
+def dbcv_measure(data=None, labels=None, dists=None, dim=2, mode="score"):
     """
-    Single function to compute DBCV score with various modes:
-    - mode='score': compute DBCV from raw data + labels
-    - mode='score_distance': compute DBCV from distance matrix + labels
-    - mode='score_clusters': compute DBCV from distance matrix + cluster indices
+    DBCV (Density-Based Clustering Validation). Adapted from https://github.com/g-schlake/ASCVI/,
+    Schlake, Georg Stefan, and Christian Beecks. "Validating Arbitrary Shaped Clusters-A Survey." 2024 IEEE
+    11th International Conference on Data Science and Advanced Analytics (DSAA). IEEE, 2024.
+    https://doi.org/10.1109/DSAA61799.2024.10722773
 
-    Parameters:
-    - data: ndarray (n_samples, n_features), raw data for 'score' mode
-    - dists: ndarray (n_samples, n_samples), distance matrix for other modes
-    - labels: ndarray (n_samples,), cluster labels
-    - dim: int, dimensionality (default 2)
-    - mode: str, one of ['score', 'score_distance', 'score_clusters']
+    Original reference: Moulavi, Davoud, et al. "Density-based clustering validation." Proceedings of the 2014
+    SIAM international conference on data mining. Society for Industrial and Applied Mathematics 2014.
+    This implementation is an adaptation of ASCVI implementation.
+
+    It has various modes:
+        - mode='score': compute DBCV from raw data + labels
+        - mode='score_distance': compute DBCV from distance matrix + labels
+        - mode='score_clusters': compute DBCV from distance matrix + cluster indices
+
+    Args:
+        data (ndarray): (n_samples, n_features) array, raw data for 'score' mode
+        dists (ndarray): (n_samples, n_samples) array, distance matrix for other modes
+        labels: ndarray (n_samples,) array containing the cluster labels
+        dim (int): Dimensionality (default 2)
+        mode (str): One of ['score', 'score_distance', 'score_clusters']
 
     Returns:
-    - float: DBCV score
+        DBCV score (float)
     """
 
     def matrix_mutual_reachability_distance(MinPts, G_edges_weights, d):
+        """ Compute mutual reachability distance. """
         G_edges_weights = G_edges_weights.copy()
         No = G_edges_weights.shape[0]
         with warnings.catch_warnings():
@@ -336,15 +365,15 @@ def dbcv_measure(data=None, dists=None, labels=None, dim=2, mode='score'):
         return valid
 
     # Call the appropriate mode
-    if mode == 'score':
+    if mode == "score":
         if data is None or labels is None:
             raise ValueError("For mode='score', data and labels must be provided.")
         return dbcv(data, labels)
-    elif mode == 'score_distance':
+    elif mode == "score_distance":
         if dists is None or labels is None:
             raise ValueError("For mode='score_distance', dists and labels must be provided.")
         return dbcv_dist_matrix(dists, labels, dim)
-    elif mode == 'score_clusters':
+    elif mode == "score_clusters":
         if dists is None or labels is None:
             raise ValueError("For mode='score_clusters', dists and labels must be provided.")
         return dbcv_dist_matrix(dists, labels, dim)
@@ -903,30 +932,3 @@ def kdbcv(X: npt.NDArray[np.float64], labels: npt.NDArray[np.int_], ind_clust_sc
     return DBCV_val_agg, DBCV_val_ind
 
 # </editor-fold>
-
-#
-# # Generate sample data
-# X, _ = make_moons(n_samples=1000, noise=0.05, random_state=42)
-#
-# # Apply clustering algorithm
-# dbscan = DBSCAN(eps=0.1, min_samples=2)
-# labels = dbscan.fit_predict(X)
-#
-# # Compute scores
-# import time
-# st = time.time()
-# cdr = CDR_Index().score(X, labels)
-# cvnn = CVNN_halkidi().score(X, labels)
-# kdbcv = DBCV().score(X, labels)
-# duration = time.time() - st
-#
-# print(f"CDR: {cdr}")
-# print(f"CVNN: {cvnn}")
-# print(f"DBCV: {kdbcv}")
-# print(duration)
-#
-# # Plot
-# plt.scatter(X[:, 0], X[:, 1], c=labels)
-# plt.show()
-#
-#
