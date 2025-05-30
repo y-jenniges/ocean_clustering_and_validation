@@ -31,15 +31,14 @@ def add_spatially_constrained_ward_to_config(df_in,
     Adds a spatially constrained AgglomerativeClustering (Ward) entry to config.algorithms_and_hyps.
 
     Args:
-    - df_in: pandas DataFrame with 'lat', 'lon', 'depth' columns
-    - config: config object with .algorithms_and_hyps dict
-    - lat_col, lon_col, depth_col: names of the spatial columns
-    - depth_scale: scale depth to kilometers (default: 1000)
-    - n_neighbors: neighbors for k-NN graph
-    - algorithm_name: key name to add to config
+        df_in: pandas DataFrame with 'lat', 'lon', 'depth' columns
+        lat_col, lon_col, depth_col: names of the spatial columns
+        depth_scale: scale depth to kilometers (default: 1000)
+        n_neighbors: neighbors for k-NN graph
+        algorithm_name: key name to add to config
 
     Returns:
-    - updated_algorithms: new dictionary including the spatial_ward algorithm
+        updated_algorithms: new dictionary including the spatial_ward algorithm
     """
     logging.info("Compute spatial connectivity matrix...")
 
