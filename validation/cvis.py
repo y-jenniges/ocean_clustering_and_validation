@@ -1,401 +1,34 @@
+import numpy as np
 from scipy.spatial.distance import pdist, squareform
 from scipy.sparse.csgraph import minimum_spanning_tree
 from scipy.spatial import cKDTree
 import numpy.typing as npt
 from typing import List, Tuple, Dict, Optional
-import numpy as np
-from sklearn.neighbors import NearestNeighbors
-from sklearn.metrics import pairwise_distances
-import warnings
-from copy import copy
+
+""" Density Based Cluster Validation
+Moulavi, D., Jaskowiak, P. A., Campello, R. J. G. B., Zimek, A. & Sander, J. Density-based clustering validation. SIAM Int. Conf. Data Min. 2014, SDM 2014 2, 839–847 (2014)
+
+k-DBCV implementation
+Hammer, J. L., Devanny, A. J. & Kaufman, L. J. Density-based optimization for unbiased, reproducible clustering applied to single molecule localization microscopy. Preprint at https://www.biorxiv.org/content/10.1101/2024.11.01.621498v1 (2024) """
 
 
-""" 
-The following scores (cvnn_halkidi, cdr, dbcv_measure) are adaptions of the implementation at 
-https://github.com/g-schlake/ASCVI/ from 
-Schlake, Georg Stefan, and Christian Beecks. "Validating Arbitrary Shaped Clusters-A Survey." 2024 IEEE
-11th International Conference on Data Science and Advanced Analytics (DSAA). IEEE, 2024.
-https://doi.org/10.1109/DSAA61799.2024.10722773
-"""
-
-
-def cvnn_halkidi(X, labels, k=None):
-    """
-    CVNN (Corrected Variance of Nearest Neighbors). Adapted from https://github.com/g-schlake/ASCVI/,
-    Schlake, Georg Stefan, and Christian Beecks. "Validating Arbitrary Shaped Clusters-A Survey." 2024 IEEE
-    11th International Conference on Data Science and Advanced Analytics (DSAA). IEEE, 2024.
-    https://doi.org/10.1109/DSAA61799.2024.10722773
-
-    Original reference: Halkidi, Maria, Michalis Vazirgiannis, and Christian Hennig.
-    "Method-independent indices for cluster validation and estimating the number of clusters."
-    Handbook of cluster analysis. Chapman and Hall/CRC, 2015. 616-639.
-    eBook ISBN 9780429185472
-
-    Args:
-        X (np.ndarray): Feature matrix of shape (n_samples, n_features)
-        labels (np.ndarray): Cluster labels (noise = -1 will be ignored)
-        k (int): optional, Number of nearest neighbors; auto-chosen if None
-
-    Returns:
-        CVNN score (float): CVNN Halkidi Score (lower = better clustering)
-    """
-    labels = np.asarray(labels)  # Ensure labels is a numpy array
-    unique_labels = np.unique(labels[labels != -1])  # Get unique labels, exclude noise
-    n_samples = X.shape[0]  # Get number of samples
-    n_clusters = len(unique_labels)  # Number of unique labels
-
-    # Determine number of nearest neighbours
-    if k is None:
-        k = max(min(10, n_samples - 1), min(100, int(n_samples / (n_clusters * 100))))
-    k = min(k, n_samples - 1)  # Ensure that k is <= n_samples -1
-
-    # Compute full distance matrix
-    dists = pairwise_distances(X)
-
-    # Nearest neighbours on feature space
-    nbrs = NearestNeighbors(n_neighbors=k + 1).fit(X)
-    neighbor_indices = nbrs.kneighbors(X, return_distance=False)[:, 1:]  # Skip self (first)
-
-    comp = 0.0  # Compactness numerator (sum of intra-cluster distances)
-    nji = 0  # Number of cluster pairs
-    sepj = []  # Separation values of each cluster
-
-    for cluster_id in unique_labels:
-        cluster_mask = labels == cluster_id
-
-        # Count number of points in this cluster
-        nj = np.sum(cluster_mask)
-
-        # Skip clusters where intra-cluster distances cannot be computed
-        # if nj < 2:
-        #     continue
-
-        # Compactness: Sum of all pairwise distances within cluster
-        compj = np.sum(dists[cluster_mask][:, cluster_mask])
-        comp += compj
-        nji += nj * (nj - 1)
-
-        # Separation: Fraction of neighbors not in same cluster
-        neighbors = neighbor_indices[cluster_mask]
-        neighbor_labels = labels[neighbors]
-        sep_fraction = np.sum(neighbor_labels != cluster_id) / (nj * k)
-        sepj.append(sep_fraction)
-
-    # Final compactness term (corrected by number of pairs)
-    compactness = comp / nji if nji > 0 else 0.0
-
-    # Final separation term (worst-case cluster)
-    separation = max(sepj) if sepj else 0
-
-    # CVNN score = separation + compactness
-    return separation + compactness
-
-
-def cdr(X, labels, distance="euclidean", avg=True):
-    """
-    CDR Index: Corrected Density-based clustering validation metric. Adapted from https://github.com/g-schlake/ASCVI/,
-    Schlake, Georg Stefan, and Christian Beecks. "Validating Arbitrary Shaped Clusters-A Survey." 2024 IEEE
-    11th International Conference on Data Science and Advanced Analytics (DSAA). IEEE, 2024.
-    https://doi.org/10.1109/DSAA61799.2024.10722773
-
-    Original reference:
-    Rojas‐Thomas & Santos (2021), corrected as in ASCVI (Schlake et al. 2024)
-
-    Args:
-        X (ndarray): (n_samples, n_features) array or precomputed distance matrix
-        labels (ndarray): (n_samples,) array of clustering labels
-        distance (str): Distance metric. Default='euclidean'. Set to 'precomputed' if X is a distance matrix
-        avg (bool): Whether to normalise intra-cluster variation by cluster size (ASCVI correction)
-
-    Returns:
-        CDR index (float): Score (lower is better)
-    """
-    labels = np.asarray(labels)  # Ensure labels is a numpy array
-    unique_labels = np.unique(labels[labels != -1])  # Get unique labels, exclude noise
-    n_samples = len(labels)  # Get number of samples
-
-    # Compute distance matrix if not precomputed
-    if distance != "precomputed":
-        distances = pairwise_distances(X, metric=distance)
-    else:
-        distances = X.copy()
-
-    # Avoid self-distances
-    np.fill_diagonal(distances, np.inf)
-
-    # Numerator accumulator
-    total_cdr = 0
-
-    for cluster in unique_labels:
-
-        cluster_idx = np.where(labels == cluster)[0]
-        n_cluster = len(cluster_idx)
-
-        if n_cluster < 2:
-            continue  # No variation to measure
-
-        # Extract intra-cluster distance matrix
-        inner_dists = distances[cluster_idx][:, cluster_idx]
-
-        # Local density estimate: Min distance to another in-cluster point
-        local_densities = np.min(inner_dists, axis=0)
-
-        # Mean density
-        mean_density = np.sum(local_densities) / n_cluster
-
-        # Absolute deviation from mean
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore", category=RuntimeWarning)
-            deviation = np.abs(local_densities - mean_density)
-
-            # ASCVI correction: normalize deviation by cluster size
-            numerator = np.sum(deviation)
-            if avg:
-                numerator /= n_cluster
-
-            # Cluster's contribution to the total score
-            cluster_score = numerator / mean_density if mean_density != 0 else 0
-            total_cdr += n_cluster * cluster_score
-
-    # Avoid division by zero (e.g. in case all labels are -1)
-    if n_samples == 0:
-        return np.inf
-
-    # Final CDR score = weighted average over all clusters
-    return total_cdr / n_samples
-
-
-def dbcv_measure(data=None, labels=None, dists=None, dim=2, mode="score"):
-    """
-    DBCV (Density-Based Clustering Validation). Adapted from https://github.com/g-schlake/ASCVI/,
-    Schlake, Georg Stefan, and Christian Beecks. "Validating Arbitrary Shaped Clusters-A Survey." 2024 IEEE
-    11th International Conference on Data Science and Advanced Analytics (DSAA). IEEE, 2024.
-    https://doi.org/10.1109/DSAA61799.2024.10722773
-
-    Original reference: Moulavi, Davoud, et al. "Density-based clustering validation." Proceedings of the 2014
-    SIAM international conference on data mining. Society for Industrial and Applied Mathematics 2014.
-    This implementation is an adaptation of ASCVI implementation.
-
-    It has various modes:
-        - mode='score': compute DBCV from raw data + labels
-        - mode='score_distance': compute DBCV from distance matrix + labels
-        - mode='score_clusters': compute DBCV from distance matrix + cluster indices
-
-    Args:
-        data (ndarray): (n_samples, n_features) array, raw data for 'score' mode
-        dists (ndarray): (n_samples, n_samples) array, distance matrix for other modes
-        labels: ndarray (n_samples,) array containing the cluster labels
-        dim (int): Dimensionality (default 2)
-        mode (str): One of ['score', 'score_distance', 'score_clusters']
-
-    Returns:
-        DBCV score (float)
-    """
-
-    def matrix_mutual_reachability_distance(MinPts, G_edges_weights, d):
-        """ Compute mutual reachability distance. """
-        G_edges_weights = G_edges_weights.copy()
-        No = G_edges_weights.shape[0]
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", category=RuntimeWarning)
-            K_NN_Dist = np.power(G_edges_weights, -1 * d)
-        K_NN_Dist[K_NN_Dist == np.inf] = 0
-        d_ucore = sum(K_NN_Dist)
-        d_ucore = d_ucore / (No - 1)
-        with warnings.catch_warnings():
-            warnings.filterwarnings("ignore", category=RuntimeWarning)
-            d_ucore = np.power((1 / d_ucore), 1 / d)
-        d_ucore[d_ucore == np.inf] = 0
-        for i in range(No):
-            for j in range(MinPts):
-                val = np.max([d_ucore[i], d_ucore[j], G_edges_weights[i, j]])
-                G_edges_weights[i, j] = val
-                G_edges_weights[j, i] = val
-        return d_ucore, G_edges_weights
-
-    def MST_Edges(G, start, G_edges_weights):
-        intree = np.zeros((G["no_vertices"]), dtype=int)
-        d = np.ndarray((G["no_vertices"]))
-        for i in range(G["no_vertices"]):
-            d[i] = np.inf
-            G["MST_parent"][i] = i
-        d[start] = 0
-        v = start
-        counter = 0
-        while counter < G["no_vertices"] - 1:
-            intree[v] = 1
-            dist = np.inf
-            for w in range(G["no_vertices"]):
-                if w != v and intree[w] == 0:
-                    weight = G_edges_weights[v, w]
-                    if d[w] > weight:
-                        d[w] = weight
-                        G["MST_parent"][w] = v
-                    if dist > d[w]:
-                        dist = d[w]
-                        next_v = w
-            G["MST_edges"][counter, 0] = G["MST_parent"][next_v]
-            G["MST_edges"][counter, 1] = next_v
-            G["MST_edges"][counter, 2] = G_edges_weights[G["MST_parent"][next_v], next_v]
-            G["MST_degrees"][G["MST_parent"][next_v]] += 1
-            G["MST_degrees"][next_v] += 1
-            v = next_v
-            counter += 1
-        return G["MST_edges"], G["MST_degrees"]
-
-    def dbcv(data, partition, outlier_cluster=-1):
-        partition = copy(partition)
-        clusters = np.unique(partition)
-        dist = np.power(pairwise_distances(data), 2)
-        # Mark singleton clusters as outlier
-        for cluster in clusters:
-            if np.count_nonzero(partition == cluster) == 1:
-                partition[partition == cluster] = outlier_cluster
-                clusters[clusters == cluster] = outlier_cluster
-        clusters = clusters[clusters != outlier_cluster]
-        if len(clusters) <= 1:
-            return 0
-        data_filtered = data[partition != outlier_cluster, :]
-        dist = dist[partition != outlier_cluster, :][:, partition != outlier_cluster]
-        poriginal = partition
-        partition = partition[partition != outlier_cluster]
-        nclusters = len(clusters)
-        nobjects, nfeatures = np.shape(data_filtered)
-        d_ucore_cl = np.zeros((nobjects))
-        compcl = np.zeros((nclusters))
-        int_edges = [None] * nclusters
-        int_node_data = [None] * nclusters
-
-        for i in range(nclusters):
-            objcl = np.where(partition == clusters[i])[0]
-            nuobjcl = len(objcl)
-            d_ucore_cl[objcl], mr = matrix_mutual_reachability_distance(nuobjcl, dist[objcl, :][:, objcl], nfeatures)
-            G = {
-                "no_vertices": nuobjcl,
-                "MST_edges": np.zeros((nuobjcl - 1, 3)),
-                "MST_degrees": np.zeros((nuobjcl), dtype=int),
-                "MST_parent": np.zeros((nuobjcl), dtype=int),
-            }
-            Edges, Degrees = MST_Edges(G, 0, mr)
-            int_node = np.where(Degrees != 1)[0]
-            int_edg1 = np.where(np.in1d(Edges[:, 0], int_node))[0]
-            int_edg2 = np.where(np.in1d(Edges[:, 1], int_node))[0]
-            int_edges[i] = np.intersect1d(int_edg1, int_edg2)
-            if len(int_edges[i]) > 0:
-                compcl[i] = np.max(Edges[int_edges[i], 2])
-            else:
-                compcl[i] = np.max(Edges[:, 2])
-            int_node_data[i] = objcl[int_node]
-            if len(int_node_data[i]) == 0:
-                int_node_data[i] = objcl
-
-        sepcl = np.full((nclusters), np.inf)
-        for i in range(nclusters):
-            sep = np.full((nclusters), np.inf)
-            for j in range(nclusters):
-                if i == j:
-                    continue
-                sep[j] = np.min(dist[int_node_data[i], :][:, int_node_data[j]])
-            sepcl[i] = np.min(sep)
-
-        valid = 0
-        for i in range(nclusters):
-            dbcvcl = (sepcl[i] - compcl[i]) / np.max([compcl[i], sepcl[i]])
-            valid += dbcvcl * np.sum(partition == clusters[i])
-        valid /= len(poriginal)
-        return valid
-
-    def dbcv_dist_matrix(dist, partition, n_features, outlier_cluster=-1):
-        partition = copy(partition)
-        clusters = np.unique(partition)
-        for cluster in clusters:
-            if np.count_nonzero(partition == cluster) == 1:
-                partition[partition == cluster] = outlier_cluster
-                clusters[clusters == cluster] = outlier_cluster
-        clusters = clusters[clusters != outlier_cluster]
-        if len(clusters) <= 1:
-            return 0
-        dist = dist[partition != outlier_cluster, :][:, partition != outlier_cluster]
-        poriginal = partition
-        partition = partition[partition != outlier_cluster]
-        nclusters = len(clusters)
-        nobjects = dist.shape[0]
-        d_ucore_cl = np.zeros((nobjects))
-        compcl = np.zeros((nclusters))
-        int_edges = [None] * nclusters
-        int_node_data = [None] * nclusters
-
-        for i in range(nclusters):
-            objcl = np.where(partition == clusters[i])[0]
-            nuobjcl = len(objcl)
-            d_ucore_cl[objcl], mr = matrix_mutual_reachability_distance(nuobjcl, dist[objcl, :][:, objcl], n_features)
-            G = {
-                "no_vertices": nuobjcl,
-                "MST_edges": np.zeros((nuobjcl - 1, 3)),
-                "MST_degrees": np.zeros((nuobjcl), dtype=int),
-                "MST_parent": np.zeros((nuobjcl), dtype=int),
-            }
-            Edges, Degrees = MST_Edges(G, 0, mr)
-            int_node = np.where(Degrees != 1)[0]
-            int_edg1 = np.where(np.in1d(Edges[:, 0], int_node))[0]
-            int_edg2 = np.where(np.in1d(Edges[:, 1], int_node))[0]
-            int_edges[i] = np.intersect1d(int_edg1, int_edg2)
-            if len(int_edges[i]) > 0:
-                compcl[i] = np.max(Edges[int_edges[i], 2])
-            else:
-                compcl[i] = np.max(Edges[:, 2])
-            int_node_data[i] = objcl[int_node]
-            if len(int_node_data[i]) == 0:
-                int_node_data[i] = objcl
-
-        sepcl = np.full((nclusters), np.inf)
-        for i in range(nclusters):
-            sep = np.full((nclusters), np.inf)
-            for j in range(nclusters):
-                if i == j:
-                    continue
-                sep[j] = np.min(dist[int_node_data[i], :][:, int_node_data[j]])
-            sepcl[i] = np.min(sep)
-
-        valid = 0
-        for i in range(nclusters):
-            dbcvcl = (sepcl[i] - compcl[i]) / np.max([compcl[i], sepcl[i]])
-            valid += dbcvcl * np.sum(partition == clusters[i])
-        valid /= len(poriginal)
-        return valid
-
-    # Call the appropriate mode
-    if mode == "score":
-        if data is None or labels is None:
-            raise ValueError("For mode='score', data and labels must be provided.")
-        return dbcv(data, labels)
-    elif mode == "score_distance":
-        if dists is None or labels is None:
-            raise ValueError("For mode='score_distance', dists and labels must be provided.")
-        return dbcv_dist_matrix(dists, labels, dim)
-    elif mode == "score_clusters":
-        if dists is None or labels is None:
-            raise ValueError("For mode='score_clusters', dists and labels must be provided.")
-        return dbcv_dist_matrix(dists, labels, dim)
-    else:
-        raise ValueError(f"Unsupported mode: {mode}")
-
-
-# <editor-fold desc="Your description here">
-# https://github.com/Kaufman-Lab-Columbia/k-DBCV
-# Default for batch_mode was False
-def kdbcv(X: npt.NDArray[np.float64], labels: npt.NDArray[np.int_], ind_clust_scores: bool = False,
-          mem_cutoff: float = 25.0, batch_mode=True) -> Tuple[float, Optional[List[float]]]:
+def DBCV_score(
+        X: npt.NDArray[np.float64],
+        labels: npt.NDArray[int],
+        ind_clust_scores: bool = False,
+        mem_cutoff: float = 25.0,
+        batch_mode=True  # Originally, default was False
+) -> Tuple[float, Optional[List[float]]]:
     """
     Main function that returns the aggregate and (optionally) individual
     DBCV cluster scores based on input coordinate data (clustered + noise).
 
     Args:
-        X (npt.NDArray[np.float_]):
+        X (npt.NDArray[np.float64]):
             An array of float coordinates with shape (N, d), where N is the total
             number of points (clustered + noise) and d is the dimensionality of the
             data.
-        labels (npt.NDArray[np.int_]):
+        labels (npt.NDArray[int]):
             An array of integer labels with shape (N,), where N is the total number
             of points (clustered + noise). The labels map back to the points in X.
             Cluster labels are consecutive integers in the range
@@ -419,18 +52,27 @@ def kdbcv(X: npt.NDArray[np.float64], labels: npt.NDArray[np.int_], ind_clust_sc
               returned as None.
     """
 
-    def format_data(X: npt.NDArray[np.float64], labels: npt.NDArray[np.int_]) \
-            -> Tuple[int, Optional[npt.NDArray[np.float64]], Optional[List[npt.NDArray[np.float64]]],
-                     Optional[npt.NDArray[np.int_]], int, int, int]:
+    def format_data(
+            X: npt.NDArray[np.float64],
+            labels: npt.NDArray[int]
+    ) -> Tuple[
+        int,
+        Optional[npt.NDArray[np.float64]],
+        Optional[List[npt.NDArray[np.float64]]],
+        Optional[npt.NDArray[int]],
+        int,
+        int,
+        int
+    ]:
         """
         Formats coordinates of clustered and noise points for DBCV scoring based
         on input labels.
 
         Args:
-            X (npt.NDArray[np.float_]):
+            X (npt.NDArray[np.float64]):
                 See DBCV_score() args.
 
-            labels (npt.NDArray[np.int_]):
+            labels (npt.NDArray[int]):
                 See DBCV_score() args.
 
         Returns:
@@ -441,14 +83,14 @@ def kdbcv(X: npt.NDArray[np.float64], labels: npt.NDArray[np.int_], ind_clust_sc
                   - _NOT_ENOUGH_CLUSTERS (int): Scoring is not possible because not enough
                     clusters were found.
                   - _SUCCESS (int): The data can be scored.
-                - Optional[npt.NDArray[np.float_]]: A master array of float coordinates
+                - Optional[npt.NDArray[np.float64]]: A master array of float coordinates
                   with shape (N, d + 1), where N is the number of clustered points and d
                   is the dimensionality of the data. Contains all clustered points and
                   associated cluster labels. The clustered points are contained in the
                   first d columns, followed by the labels in the last column. The array is
                   sorted in ascending order by the label column. Returns as None if the
                   data cannot be scored.
-                - Optional[List[npt.NDArray[np.float_]]]: A list of arrays with
+                - Optional[List[npt.NDArray[np.float64]]]: A list of arrays with
                   len(List) = num_clusters. Each array contains the coordinates
                   corresponding to a specific cluster label, stored in ascending order of
                   labels. For example, List[0] contains the coordinates belonging to
@@ -457,7 +99,7 @@ def kdbcv(X: npt.NDArray[np.float64], labels: npt.NDArray[np.int_], ind_clust_sc
                   current cluster and d is the dimensionality. The first d columns contain
                   the coordinates, while the last column contains the label for the
                   current cluster. Returns as None if the data cannot be scored.
-                - Optional[npt.NDArray[np.int_]]: An array of integer indices for quick
+                - Optional[npt.NDArray[int]]: An array of integer indices for quick
                   lookup of clustered points in the sorted master array. The indices are
                   stored as follows:
                   [0, start_index_1, start_index_2, ...start_index_last, end_index_last].
@@ -474,6 +116,7 @@ def kdbcv(X: npt.NDArray[np.float64], labels: npt.NDArray[np.int_], ind_clust_sc
                 - int: An integer indicating the number of clusters. Returns 0 if data
                   cannot be scored.
         """
+
         if sum(np.unique(labels) != -1) == 1:
             return _NOT_ENOUGH_CLUSTERS, None, None, None, 0, 0, 0
 
@@ -542,14 +185,16 @@ def kdbcv(X: npt.NDArray[np.float64], labels: npt.NDArray[np.int_], ind_clust_sc
 
         return _SUCCESS, cluster_sort, cluster_groups, cluster_ind, n_samp, d, N_clust
 
-    def predict_memory_allocation(labels: npt.NDArray[np.int_]) -> float:
+    def predict_memory_allocation(
+            labels: npt.NDArray[int]
+    ) -> float:
         """
         Provides a rough estimation of the memory required to perform the
         intracluster_analysis() based on the largest cluster size found in the
         data, as indicated by the labels.
 
         Args:
-            labels (npt.NDArray[np.int_]):
+            labels (npt.NDArray[int]):
                 See format_data() args.
 
         Returns:
@@ -564,9 +209,16 @@ def kdbcv(X: npt.NDArray[np.float64], labels: npt.NDArray[np.int_], ind_clust_sc
 
         return predicted_memory
 
-    def intracluster_analysis(N_clust: int, cluster_groups: List[npt.NDArray[np.float64]], d: int,) \
-            -> Tuple[Dict[int, float], npt.NDArray[np.float64], Dict[int, npt.NDArray[np.float64]],
-                     Dict[int, npt.NDArray[np.int_]]]:
+    def intracluster_analysis(
+            N_clust: int,
+            cluster_groups: List[npt.NDArray[np.float64]],
+            d: int,
+    ) -> Tuple[
+        Dict[int, float],
+        npt.NDArray[np.float64],
+        Dict[int, npt.NDArray[np.float64]],
+        Dict[int, npt.NDArray[int]]
+    ]:
         """
         Analyzes the properties of individual clusters for scoring. Computes the
         all points core distance, identifies core points, and returns the
@@ -576,7 +228,7 @@ def kdbcv(X: npt.NDArray[np.float64], labels: npt.NDArray[np.int_], ind_clust_sc
         Args:
             N_clust (int):
                 The total number of clusters to be analyzed.
-            cluster_groups (List[npt.NDArray[np.float_]]):
+            cluster_groups (List[npt.NDArray[np.float64]]):
                 The sorted clustered points and labels, returned from format_data() in
                 Tuple[2].
             d (int):
@@ -586,13 +238,13 @@ def kdbcv(X: npt.NDArray[np.float64], labels: npt.NDArray[np.int_], ind_clust_sc
             Tuple containing:
                 - Dict[int, float]: The sparseness values computed for each cluster. The
                   key indicates the cluster label and the value indicates the sparseness.
-                - npt.NDArray[np.float_]: An array containing the core distances
+                - npt.NDArray[np.float64]: An array containing the core distances
                   computed by all_core_points_distance() for all coordinates.
-                - Dict[int, npt.NDArray[np.float_]]: The core distance for core points in
+                - Dict[int, npt.NDArray[np.float64]]: The core distance for core points in
                   all clusters. The key indicates the cluster label and the value contains
                   an array with the core distance for each core point in the associated
                   cluster.
-                - Dict[int, npt.NDArray[np.int_]]: The indices of core points in each
+                - Dict[int, npt.NDArray[int]]: The indices of core points in each
                   cluster. The key indicates the cluster label and the value contains an
                   array of integer indices used to index core points from the full
                   coordinate array for each cluster, as contained in the cluster_groups
@@ -623,8 +275,10 @@ def kdbcv(X: npt.NDArray[np.float64], labels: npt.NDArray[np.int_], ind_clust_sc
 
         return sparseness, np.hstack(core_dists_arr), core_dists_dict, core_pts
 
-    def all_points_core_distance(distance_matrix_condensed: npt.NDArray[np.float64], d: int) \
-            -> npt.NDArray[np.float64]:
+    def all_points_core_distance(
+            distance_matrix_condensed: npt.NDArray[np.float64],
+            d: int
+    ) -> npt.NDArray[np.float64]:
         """
         Helper function for intracluster_analysis() that computes the all points
         core distance of points in a cluster according to the definition
@@ -654,7 +308,9 @@ def kdbcv(X: npt.NDArray[np.float64], labels: npt.NDArray[np.int_], ind_clust_sc
         else:
             return all_pts_core_dists
 
-    def MST_builder(MRD_matrix: npt.NDArray[np.float64]) -> Tuple[float, npt.NDArray[np.int_]]:
+    def MST_builder(
+            MRD_matrix: npt.NDArray[np.float64]
+    ) -> Tuple[float, npt.NDArray[int]]:
         """
         Helper function for intracluster_analysis() that identifies core points
         based on the all points core distance, and then computes the sparseness
@@ -670,7 +326,7 @@ def kdbcv(X: npt.NDArray[np.float64], labels: npt.NDArray[np.int_], ind_clust_sc
 
         Returns:
             - float: The sparseness of the current cluster.
-            - npt.NDArray[np.int_]: An array containing the indices of the core points
+            - npt.NDArray[int]: An array containing the indices of the core points
               identified from the minimum spanning tree for the current cluster.
         """
 
@@ -690,18 +346,24 @@ def kdbcv(X: npt.NDArray[np.float64], labels: npt.NDArray[np.int_], ind_clust_sc
 
         return sparseness, core_pts
 
-    def core_points_analysis(cluster_sort: npt.NDArray[np.float64], cluster_ind: npt.NDArray[np.int_],
-                             core_pts: Dict[int, npt.NDArray[np.int_]]) \
-            -> Tuple[npt.NDArray[np.float64], List[npt.NDArray[np.float64]], npt.NDArray[np.int_]]:
+    def core_points_analysis(
+            cluster_sort: npt.NDArray[np.float64],
+            cluster_ind: npt.NDArray[int],
+            core_pts: Dict[int, npt.NDArray[int]]
+    ) -> Tuple[
+        npt.NDArray[np.float64],
+        List[npt.NDArray[np.float64]],
+        npt.NDArray[int]
+    ]:
         """
         Formats core points for intercluster_analysis().
 
         Args:
             cluster_sort (npt.NDArray[np.float64]):
                 See format_data(), returned in Tuple[1].
-            cluster_ind (npt.NDArray[np.int_]):
+            cluster_ind (npt.NDArray[int]):
                 See format_data(), returned in Tuple[3].
-            core_pts (npt.NDArray[np.int_]):
+            core_pts (npt.NDArray[int]):
                 See intracluster_analysis(), returned in Tuple[3].
 
         Returns:
@@ -717,7 +379,7 @@ def kdbcv(X: npt.NDArray[np.float64], labels: npt.NDArray[np.int_], ind_clust_sc
                   Tuple[0], but formatted such that List[0] contains the core point
                   coordinates for cluster label 0, List[1] contains the core point
                   coordinates for cluster label 1, etc.
-                - npt.NDArray[np.int_]: An array of integer indices indicating the
+                - npt.NDArray[int]: An array of integer indices indicating the
                   transitions between cluster labels for the sorted core points that are
                   returned in Tuple[0] of this function. The indices are structured such
                   that [index_arr[0]:index_arr[1]] defines the core point coordinates
@@ -745,9 +407,13 @@ def kdbcv(X: npt.NDArray[np.float64], labels: npt.NDArray[np.int_], ind_clust_sc
 
         return core_X, core_cluster_groups, core_X_ind
 
-    def intercluster_analysis(core_X: npt.NDArray[np.float64], core_cluster_groups: List[npt.NDArray[np.float64]],
-                              core_X_ind: npt.NDArray[np.int_], core_dists_arr: npt.NDArray[np.float64],
-                              core_dists_dict: Dict[int, npt.NDArray[np.float64]]) -> Dict[int, float]:
+    def intercluster_analysis(
+            core_X: npt.NDArray[np.float64],
+            core_cluster_groups: List[npt.NDArray[np.float64]],
+            core_X_ind: npt.NDArray[int],
+            core_dists_arr: npt.NDArray[np.float64],
+            core_dists_dict: Dict[int, npt.NDArray[np.float64]]
+    ) -> Dict[int, float]:
         """
         Calculates the separation value for each cluster according to the
         definitions discussed in Moulavi et al.
@@ -757,7 +423,7 @@ def kdbcv(X: npt.NDArray[np.float64], labels: npt.NDArray[np.int_], ind_clust_sc
                 See core_points_analysis(), returned in Tuple[0].
             core_cluster_groups (List[npt.NDArray[np.float64]]):
                 See core_points_analysis(), returned in Tuple[1].
-            core_X_ind (npt.NDArray[np.int_]):
+            core_X_ind (npt.NDArray[int]):
                 See core_points_analysis(), returned in Tuple[2].
             core_dists_arr (npt.NDArray[np.float64]):
                 See intracluster_analysis() returned in Tuple[1].
@@ -836,9 +502,14 @@ def kdbcv(X: npt.NDArray[np.float64], labels: npt.NDArray[np.int_], ind_clust_sc
 
         return separation
 
-    def weighted_score(sparseness: Dict[int, float], separation: Dict[int, float], N_clust: int,
-                       cluster_groups: List[npt.NDArray[np.float64]], n_samp: int, ind_clust_scores: bool) \
-            -> Tuple[float, Optional[List[float]]]:
+    def weighted_score(
+            sparseness: Dict[int, float],
+            separation: Dict[int, float],
+            N_clust: int,
+            cluster_groups: List[npt.NDArray[np.float64]],
+            n_samp: int,
+            ind_clust_scores: bool
+    ) -> Tuple[float, Optional[List[float]]]:
         """
         Performs weighted averaging of individual cluster scores to yield the
         aggregate DBCV score. Optionally returns individual scores if desired.
@@ -866,6 +537,7 @@ def kdbcv(X: npt.NDArray[np.float64], labels: npt.NDArray[np.int_], ind_clust_sc
             - Optional[List[float]]: The list of individual DBCV scores for each
               cluster.
         """
+
         cluster_score_set = []
         DBCV_val = 0
         for i in range(N_clust):
@@ -889,7 +561,17 @@ def kdbcv(X: npt.NDArray[np.float64], labels: npt.NDArray[np.int_], ind_clust_sc
     _SUCCESS = 0
 
     # Format the data for calculation efficiency
-    (status, cluster_sort, cluster_groups, cluster_ind, n_samp, d, N_clust) = format_data(X, labels)
+    (
+        status,
+        cluster_sort,
+        cluster_groups,
+        cluster_ind,
+        n_samp,
+        d,
+        N_clust
+    ) = format_data(
+        X, labels
+    )
 
     # Early exits where scoring can not be performed
     if status != 0:
@@ -930,5 +612,3 @@ def kdbcv(X: npt.NDArray[np.float64], labels: npt.NDArray[np.int_], ind_clust_sc
     )
 
     return DBCV_val_agg, DBCV_val_ind
-
-# </editor-fold>
