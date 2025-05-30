@@ -6,7 +6,8 @@ from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_har
 from measures.CDR_index import CDR_Index
 from measures.CVNN import CVNN_halkidi
 from measures.dbcv_measures import DBCV
-from validation.cvis import kdbcv, cdr, cvnn_halkidi
+# from validation.cvis import kdbcv, cdr, cvnn_halkidi
+from validation.cvis import DBCV_score
 
 
 # Output directories
@@ -71,7 +72,7 @@ algorithms_and_hyps = {"kmeans": (KMeans, {"n_clusters": list(range(2, 16)) + [2
 scores = {"silhouette": silhouette_score,
           "davies_bouldin": davies_bouldin_score,
           "calinski_harabasz": calinski_harabasz_score,
-          "dbcv": DBCV().score,
+          "kdbcv": DBCV_score,  # DBCV().score,
           "cvnn_hal": CVNN_halkidi().score,
           "cdr": CDR_Index().score
           }
