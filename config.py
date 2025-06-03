@@ -5,8 +5,6 @@ from sklearn.cluster import KMeans, DBSCAN, AgglomerativeClustering
 from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
 from measures.CDR_index import CDR_Index
 from measures.CVNN import CVNN_halkidi
-from measures.dbcv_measures import DBCV
-# from validation.cvis import kdbcv, cdr, cvnn_halkidi
 from validation.cvis import DBCV_score
 
 
@@ -64,7 +62,7 @@ preprocessings = {"robust": [RobustScaler], "robust_umap": [RobustScaler, UMAP(*
 algorithms_and_hyps = {"kmeans": (KMeans, {"n_clusters": list(range(2, 16)) + [20, 30, 40, 50, 60],
                                            "n_init": ["auto"]}),
                        "ward": (AgglomerativeClustering, {"n_clusters": range(2, 31), "distance_threshold": [None],
-                                                          "linkage": ["ward"]}  #, "compute_distances": [True]}
+                                                          "linkage": ["ward"]}
                                 ),
                        "dbscan": (DBSCAN, {"eps": np.linspace(0.01, 0.2, 60), "min_samples": range(2, 12)}),
                        # "optics": (OPTICS, {"min_samples": range(1, 16), "max_eps": [np.inf]})
@@ -72,7 +70,7 @@ algorithms_and_hyps = {"kmeans": (KMeans, {"n_clusters": list(range(2, 16)) + [2
 scores = {"silhouette": silhouette_score,
           "davies_bouldin": davies_bouldin_score,
           "calinski_harabasz": calinski_harabasz_score,
-          "kdbcv": DBCV_score,  # DBCV().score,
+          "kdbcv": DBCV_score,
           "cvnn_hal": CVNN_halkidi().score,
           "cdr": CDR_Index().score
           }
