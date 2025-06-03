@@ -10,17 +10,18 @@ import config
 
 
 def run_clustering_experiments(df, preprocessing_steps, clustering_algorithms, n_iterations, scores,
-                               store_labels=False):
+                               store_labels=False, other_algos=[]):
     """
     Perform clustering experiments by building Pipelines with the given models.
 
     Args:
-        df (pandas.DataFrame): Data to run the experiments on (column selection is specified by config.parameters).
-        preprocessing_steps (dict): Name and model(s) to run for preprocessing.
-        clustering_algorithms (dict): Name and model(s) to run for clustering.
-        n_iterations (int): How often each clustering experiment with each hyperparameter combination will be repeated.
-        scores (dict): Name and model to run for internal validation.
-        store_labels (bool): Whether to store clustering labels or not (default is False).
+        df (pandas.DataFrame): Data to run the experiments on (column selection is specified by config.parameters)
+        preprocessing_steps (dict): Name and model(s) to run for preprocessing
+        clustering_algorithms (dict): Name and model(s) to run for clustering
+        n_iterations (int): How often each clustering experiment with each hyperparameter combination will be repeated
+        scores (dict): Name and model to run for internal validation
+        store_labels (bool): Whether to store clustering labels or not (default is False)
+        other_algos (list<str>): Clustering algorithms that were not added in the config file
     """
     logging.info("Starting clustering experiments...")
     logging.getLogger('numba').setLevel(logging.WARNING)  # Hide numba debug messages (numba is used in umap-learn)
@@ -155,7 +156,7 @@ def run_clustering_experiments(df, preprocessing_steps, clustering_algorithms, n
     # Combine and store internal validation results per clustering algorithm
     logging.info("Combining clustering experiment result files...")
     files_to_remove = []
-    for cluster_name in clustering_algorithms.keys():
+    for cluster_name in list(clustering_algorithms.keys()) + other_algos:
         files_to_combine = [file for file in Path().glob(
             f"{config.output_dir_clustering}/internal_validation_iteration*_*_{cluster_name}_*.csv")]
         files_to_remove = files_to_remove + files_to_combine
@@ -170,7 +171,7 @@ def run_clustering_experiments(df, preprocessing_steps, clustering_algorithms, n
 
     # Combine label files
     files_to_remove = []
-    for cluster_name in clustering_algorithms.keys():
+    for cluster_name in list(clustering_algorithms.keys()) + other_algos:
         dfs = []
         files_to_combine = [file for file in Path().glob(
             f"{config.output_dir_clustering}/labels_iteration*_*_{cluster_name}_*.csv")]
@@ -196,8 +197,10 @@ def run_clustering_experiments(df, preprocessing_steps, clustering_algorithms, n
             files_to_remove.append(Path(file))
 
             # Store each hyperparameter in a separate column
-            for hyp in config.algorithms_and_hyps[cluster_name][1].keys():
-                t[hyp] = str(file).split(hyp)[1].split("_")[0].rstrip(".csv")
+            for hyp in clustering_algorithms[cluster_name][1].keys():
+                # Check if the hyp is in the filename
+                if len(str(file).split(hyp)) > 1:
+                    t[hyp] = str(file).split(hyp)[1].split("_")[0].rstrip(".csv")
 
             dfs.append(t)
 
