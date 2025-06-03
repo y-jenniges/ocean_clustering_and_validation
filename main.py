@@ -4,6 +4,11 @@ os.environ["OPENBLAS_NUM_THREADS"] = "4"
 os.environ["OMP_NUM_THREADS"] = "4"
 os.environ["MKL_NUM_THREADS"] = "4"
 os.environ["NUMEXPR_NUM_THREADS"] = "4"
+
+# Ensure correct matplotlib backend
+import matplotlib
+matplotlib.use("TkAgg")
+
 import sys
 import logging
 import pandas as pd
@@ -37,14 +42,14 @@ def add_spatially_constrained_ward_to_config(df_in,
     Adds a spatially constrained AgglomerativeClustering (Ward) entry to config.algorithms_and_hyps.
 
     Args:
-        df_in: pandas DataFrame with 'lat', 'lon', 'depth' columns
-        lat_col, lon_col, depth_col: names of the spatial columns
-        depth_scale: scale depth to kilometers (default: 1000)
-        n_neighbors: neighbors for k-NN graph
-        algorithm_name: key name to add to config
+        df_in (pandas.DataFrame): With 'lat', 'lon', 'depth' columns
+        lat_col, lon_col, depth_col: Names of the spatial columns
+        depth_scale: Scale depth to kilometers (default: 1000)
+        n_neighbors: Neighbours for k-NN graph
+        algorithm_name: Key name to add to config
 
     Returns:
-        updated_algorithms: new dictionary including the spatial_ward algorithm
+        updated_algorithms: New algorithms dictionary including the new algorithm
     """
     logging.info("Compute spatial connectivity matrix...")
 
@@ -117,15 +122,16 @@ if __name__ == "__main__":
                                       logging.StreamHandler(stream=sys.stdout)])
 
         # Add spatially constrained Ward to config
-        algorithms_with_spatial = add_spatially_constrained_ward_to_config(df, n_neighbors=21)
+        updated_algorithms = add_spatially_constrained_ward_to_config(df, n_neighbors=21)
 
         # Run experiments
         run_clustering_experiments(df=df,
                                    preprocessing_steps=config.preprocessings,
-                                   clustering_algorithms=algorithms_with_spatial,
+                                   clustering_algorithms=updated_algorithms,
                                    n_iterations=config.n_iterations,
                                    scores=config.scores,
-                                   store_labels=True)
+                                   store_labels=True,
+                                   other_algos=["spatial_ward"])
         end = time()
         logging.info(f"Running the clustering experiments took {end - start} seconds.")
 
