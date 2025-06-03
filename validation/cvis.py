@@ -5,11 +5,18 @@ from scipy.spatial import cKDTree
 import numpy.typing as npt
 from typing import List, Tuple, Dict, Optional
 
-""" Density Based Cluster Validation
-Moulavi, D., Jaskowiak, P. A., Campello, R. J. G. B., Zimek, A. & Sander, J. Density-based clustering validation. SIAM Int. Conf. Data Min. 2014, SDM 2014 2, 839–847 (2014)
+""" Density Based Cluster Validation (DBCV)
+The original paper: 
+Moulavi, D., Jaskowiak, P. A., Campello, R. J. G. B., Zimek, A. & Sander, J. Density-based clustering validation. 
+SIAM Int. Conf. Data Min. 2014, SDM 2014 2, 839–847 (2014)
 
-k-DBCV implementation
-Hammer, J. L., Devanny, A. J. & Kaufman, L. J. Density-based optimization for unbiased, reproducible clustering applied to single molecule localization microscopy. Preprint at https://www.biorxiv.org/content/10.1101/2024.11.01.621498v1 (2024) """
+The k-DBCV implementation:
+Hammer, J. L., Devanny, A. J. & Kaufman, L. J. Density-based optimization for unbiased, reproducible clustering applied 
+to single molecule localization microscopy. Preprint at https://www.biorxiv.org/content/10.1101/2024.11.01.621498v1 
+(2024) 
+
+This implementation is a copy of the k-DBCV implementation, where all functionalities are wrapped into one function. 
+"""
 
 
 def DBCV_score(
