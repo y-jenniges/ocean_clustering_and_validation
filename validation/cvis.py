@@ -568,17 +568,7 @@ def DBCV_score(
     _SUCCESS = 0
 
     # Format the data for calculation efficiency
-    (
-        status,
-        cluster_sort,
-        cluster_groups,
-        cluster_ind,
-        n_samp,
-        d,
-        N_clust
-    ) = format_data(
-        X, labels
-    )
+    (status, cluster_sort, cluster_groups, cluster_ind, n_samp, d, N_clust) = format_data(X, labels)
 
     # Early exits where scoring can not be performed
     if status != 0:
@@ -618,4 +608,5 @@ def DBCV_score(
         sparseness, separation, N_clust, cluster_groups, n_samp, ind_clust_scores
     )
 
-    return DBCV_val_agg, DBCV_val_ind
+    # Only return aggregated score
+    return DBCV_val_agg  # , DBCV_val_ind
