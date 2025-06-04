@@ -154,7 +154,8 @@ epss = np.sort(data.eps.unique())  # all epsilons
 min_sampless = np.sort(data.min_samples.unique())  # all min_samples
 all_combos = list(it.product(*[epss, min_sampless]))  # all combinations
 score_map = {"Silhouette": "silhouette", "Calinski-Harabasz": "calinski_harabasz", "Davies-Bouldin": "davies_bouldin",
-             "N clusters": "nclusters", "N noise": "nnoise", "Confetti": "confetti"}
+             "N clusters": "nclusters", "N noise": "nnoise", "Confetti": "confetti",
+             "k-DBCV": "kdbcv", "CDR": "cdr", "CVNN Halkidi": "cvnn_hal"}
 dx = abs(min_sampless[0] - min_sampless[1])
 dy = abs(epss[0] - epss[1])
 
@@ -181,7 +182,8 @@ app = Dash(__name__)
 app.layout = html.Div([
     html.Div([
         dcc.RadioItems(id="score", value='Calinski-Harabasz',
-                       options=['N clusters', 'Calinski-Harabasz', 'Davies-Bouldin', 'Silhouette', 'N noise', 'Confetti'],
+                       options=['N clusters', 'Calinski-Harabasz', 'Davies-Bouldin', 'Silhouette', 'k-DBCV',
+                                'CVNN Halkidi', 'CDR', 'N noise', 'Confetti'],
                        labelStyle={'display': 'inline-block'}),
         dcc.Checklist(id="hide-noise-check", options=["Hide noise"], value=cur_noise_check_value),
     ]),
@@ -198,8 +200,8 @@ app.layout = html.Div([
               html.Div([html.Label("Preprocessing:"),
                         dcc.RadioItems(id="data_type",
                                        options=[
-                                           {'label': 'MinMax', 'value': 'minmax'},
-                                           {'label': 'MinMax-UMAP', 'value': 'minmax_umap'}],
+                                           {'label': 'Robust', 'value': 'robust'},
+                                           {'label': 'Robust-UMAP', 'value': 'robust_umap'}],
                                        value="minmax",
                                        )
                         ])

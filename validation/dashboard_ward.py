@@ -13,7 +13,7 @@ from utils.analysis import prepare_labels_df
 # Plot settings
 scatter_size = 1.5
 score_map = {"Silhouette": "silhouette", "Calinski-Harabasz": "calinski_harabasz", "Davies-Bouldin": "davies_bouldin",
-             "N clusters": "nclusters"}
+             "N clusters": "nclusters", "k-DBCV": "kdbcv", "CDR": "cdr", "CVNN Halkidi": "cvnn_hal"}
 
 # Load original data
 df_original = pd.read_csv(f"{config.output_dir}/wide_table_knn.csv")
@@ -49,8 +49,9 @@ print("Figures defined")
 # Dash app and layout
 app = Dash(__name__)
 app.layout = html.Div([
-    html.Div([dcc.RadioItems(['Calinski-Harabasz', 'Davies-Bouldin', 'Silhouette'], 'Calinski-Harabasz',
-                             id='score', labelStyle={'display': 'inline-block', 'marginTop': '5px'}),
+    html.Div([dcc.RadioItems(['Calinski-Harabasz', 'Davies-Bouldin', 'Silhouette', 'k-DBCV', 'CVNN Halkidi', 'CDR'],
+                             'Calinski-Harabasz', id='score',
+                             labelStyle={'display': 'inline-block', 'marginTop': '5px'}),
               ]),
 
     html.Div(dcc.Graph(figure=line_score, id='line-score',

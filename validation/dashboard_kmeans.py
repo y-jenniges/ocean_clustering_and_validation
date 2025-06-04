@@ -13,7 +13,7 @@ from utils.analysis import prepare_labels_df
 # Plot settings
 scatter_size = 1.5
 score_map = {"Silhouette": "silhouette", "Calinski-Harabasz": "calinski_harabasz", "Davies-Bouldin": "davies_bouldin",
-             "N clusters": "nclusters"}
+             "N clusters": "nclusters", "k-DBCV": "kdbcv", "CDR": "cdr", "CVNN Halkidi": "cvnn_hal"}
 
 # Load original data
 df_original = pd.read_csv(f"{config.output_dir}/wide_table_knn.csv")
@@ -47,8 +47,9 @@ print("Figures defined")
 # Dash app and layout
 app = Dash(__name__)
 app.layout = html.Div([
-    html.Div([dcc.RadioItems(['Calinski-Harabasz', 'Davies-Bouldin', 'Silhouette'], 'Calinski-Harabasz',
-                             id='score', labelStyle={'display': 'inline-block', 'marginTop': '5px'}),
+    html.Div([dcc.RadioItems(['Calinski-Harabasz', 'Davies-Bouldin', 'Silhouette', 'k-DBCV', 'CVNN Halkidi', 'CDR'],
+                             'Calinski-Harabasz', id='score',
+                             labelStyle={'display': 'inline-block', 'marginTop': '5px'}),
               ]),
 
     html.Div(dcc.Graph(figure=line_score, id='line-score',
@@ -68,9 +69,9 @@ app.layout = html.Div([
     html.Div([html.Div([html.Label("Preprocessing:"),
                         dcc.RadioItems(id="data_type",
                                        options=[
-                                           {'label': 'MinMax', 'value': 'minmax'},
-                                           {'label': 'MinMax-UMAP', 'value': 'minmax_umap'}],
-                                       value="minmax",
+                                           {'label': 'Robust', 'value': 'robust'},
+                                           {'label': 'Robust-UMAP', 'value': 'robust_umap'}],
+                                       value="robust",
                                        )
                         ]),
               html.Pre(id="textarea", children="Current parameters: ",
@@ -168,7 +169,7 @@ def update_heatmap(score, clickData, figure_geo, figure_umap, umap_clickData, se
         figure_umap = go.Figure(data=go.Scatter3d(name=f"{x}-umap",
                                                   x=cur_labels.e0, y=cur_labels.e1, z=cur_labels.e2,
                                                   mode='markers',
-                                                  marker=dict(size=scatter_size, color=cur_labels.color, opacity=1),
+                                                  marker=dict(size=scatter_size, color=cur_labels.color, opacity=0.7),
                                                   hovertemplate='x: %{x}<br>' +
                                                                 'y: %{y}<br>' +
                                                                 'z: %{z}<br>' +
@@ -187,4 +188,5 @@ def update_heatmap(score, clickData, figure_geo, figure_umap, umap_clickData, se
 
 # Run app
 if __name__ == '__main__':
-    app.run_server(debug=True)
+    # app.run_server(debug=True)
+    app.run(debug=True)
