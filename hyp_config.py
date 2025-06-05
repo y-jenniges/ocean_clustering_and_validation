@@ -1,6 +1,6 @@
 """ Final hyperparameter combinations for the six conducted experiments. """
 # Final hyperparameters for UMAP
-umap_hyps = {"n_neighbors": 20, "min_dist": 0.0, "n_components": 3}
+umap_hyps = {"n_neighbors": 50, "min_dist": 0.8, "metric": "euclidean", "n_components": 3}
 
 # Final hyperparameters for KMeans on original data
 kmeans_original_hyps = {"n_clusters": 2, "n_init": "auto"}
@@ -19,3 +19,17 @@ dbscan_original_hyps = {"eps": 0.11949153, "min_samples": 11}
 
 # Final hyperparameters for DBSCAN on embedded data
 dbscan_umap_hyps = {"eps": 0.10661017, "min_samples": 4}
+
+# Final hyperparameters for Spatial Ward on original data
+spatial_original_hyps = {"n_clusters": 2, "linkage": "ward"}
+
+# Final hyperparameters for Spatial Ward on embedded data
+spatial_umap_hyps = {"n_clusters": 12, "linkage": "ward"}
+
+
+# CH: 3
+# DB: 2
+# SH: 2
+# k-DBCV: 60
+# CVNN Hal:
+# CDR: 60
