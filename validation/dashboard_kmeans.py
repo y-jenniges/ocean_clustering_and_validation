@@ -69,9 +69,9 @@ app.layout = html.Div([
     html.Div([html.Div([html.Label("Preprocessing:"),
                         dcc.RadioItems(id="data_type",
                                        options=[
-                                           {'label': 'Robust', 'value': 'robust'},
-                                           {'label': 'Robust-UMAP', 'value': 'robust_umap'}],
-                                       value="robust",
+                                           {'label': 'MinMax', 'value': 'minmax'},
+                                           {'label': 'MinMax-UMAP', 'value': 'minmax_umap'}],
+                                       value="minmax",
                                        )
                         ]),
               html.Pre(id="textarea", children="Current parameters: ",

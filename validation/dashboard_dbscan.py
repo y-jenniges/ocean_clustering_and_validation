@@ -200,8 +200,8 @@ app.layout = html.Div([
               html.Div([html.Label("Preprocessing:"),
                         dcc.RadioItems(id="data_type",
                                        options=[
-                                           {'label': 'Robust', 'value': 'robust'},
-                                           {'label': 'Robust-UMAP', 'value': 'robust_umap'}],
+                                           {'label': 'MinMax', 'value': 'minmax'},
+                                           {'label': 'MinMax-UMAP', 'value': 'minmax_umap'}],
                                        value="minmax",
                                        )
                         ])
@@ -407,4 +407,4 @@ def update(figure_heatmap, clickData_heatmap, figure_geo, figure_umap, figure_de
 
 # Run app
 if __name__ == '__main__':
-    app.run_server(debug=True, use_reloader=False)
+    app.run(debug=True, use_reloader=False)
