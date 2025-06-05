@@ -9,6 +9,7 @@ os.environ["NUMEXPR_NUM_THREADS"] = "4"
 import matplotlib
 matplotlib.use("TkAgg")
 
+import argparse
 import sys
 import logging
 import pandas as pd
@@ -34,10 +35,8 @@ def create_output_directories():
     Path(config.output_dir_uncertainty).mkdir(parents=True, exist_ok=True)
 
 
-def add_spatially_constrained_ward_to_config(df_in,
-                                             lat_col="LATITUDE", lon_col="LONGITUDE", depth_col="LEV_M",
-                                             depth_scale=1000.0, n_neighbors=10,
-                                             algorithm_name="spatial_ward"):
+def add_spatially_constrained_ward_to_config(df_in, lat_col="LATITUDE", lon_col="LONGITUDE", depth_col="LEV_M",
+                                             depth_scale=1000.0, n_neighbors=10, algorithm_name="spatial_ward"):
     """
     Adds a spatially constrained AgglomerativeClustering (Ward) entry to config.algorithms_and_hyps.
 
@@ -84,17 +83,61 @@ def add_spatially_constrained_ward_to_config(df_in,
     return updated_algorithms
 
 
+def parse_args():
+    """ Parse input arguments. """
+    parser = argparse.ArgumentParser(description="Run clustering and validation experiments.")
+
+    parser.add_argument(
+        "--cluster_iterations",
+        type=int,
+        nargs="+",
+        default=None,
+        help="List of iteration indices to compute (e.g. --cluster_iterations 1 2 3). "
+             "If not passed, uses range(config.n_iterations)."
+    )
+
+    parser.add_argument(
+        "--no_prepare_data",
+        action="store_false",
+        dest="prepare_data",
+        help="Disable data preparation step (default: enabled)"
+    )
+
+    parser.add_argument(
+        "--no_run_clusterings",
+        action="store_false",
+        dest="run_clusterings",
+        help="Disable clustering step (default: enabled)"
+    )
+
+    parser.add_argument(
+        "--no_run_uncertainties",
+        action="store_false",
+        dest="run_uncertainties",
+        help="Disable uncertainty computation (default: enabled)"
+    )
+
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
-    prepare_data = False
-    run_clusterings = True
-    run_uncertainties = False
+    # Parse arguments
+    args = parse_args()
+
+    # Set default iteration list
+    cluster_iterations = args.cluster_iterations or list(range(config.n_iterations))
+
+    print(f"Running iterations: {cluster_iterations}")
+    print(f"Prepare data: {args.prepare_data}")
+    print(f"Run clusterings: {args.run_clusterings}")
+    print(f"Run uncertainties: {args.run_uncertainties}")
 
     # Create all output directories
     print("Creating output directories...")
     create_output_directories()
 
     # Prepare data in database and load it
-    if prepare_data:
+    if args.prepare_data:
         start = time()
         # Configure logging (store in logging file and in console)
         logging.basicConfig(level=logging.DEBUG,
@@ -114,7 +157,7 @@ if __name__ == "__main__":
         df = pd.read_csv(config.output_dir + "/wide_table_knn.csv")
 
     # Perform clustering experiments (and internal validation via scores)
-    if run_clusterings:
+    if args.run_clusterings:
         start = time()
         # Configure new logging (store in logging file and in console)
         logging.basicConfig(level=logging.DEBUG,
@@ -128,7 +171,7 @@ if __name__ == "__main__":
         run_clustering_experiments(df=df,
                                    preprocessing_steps=config.preprocessings,
                                    clustering_algorithms=updated_algorithms,
-                                   n_iterations=config.n_iterations,
+                                   iteration_list=cluster_iterations,
                                    scores=config.scores,
                                    store_labels=True,
                                    other_algos=["spatial_ward"])
@@ -136,7 +179,7 @@ if __name__ == "__main__":
         logging.info(f"Running the clustering experiments took {end - start} seconds.")
 
     # Run uncertainty experiments
-    if run_uncertainties:
+    if args.run_uncertainties:
         # Configure new logging (store in logging file and in console)
         logging.basicConfig(level=logging.DEBUG,
                             handlers=[logging.FileHandler(config.output_dir + "logs_uncertainty.log"),
