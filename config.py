@@ -1,6 +1,6 @@
 import numpy as np
 from umap import UMAP
-from sklearn.preprocessing import RobustScaler
+from sklearn.preprocessing import RobustScaler, MinMaxScaler
 from sklearn.cluster import KMeans, DBSCAN, AgglomerativeClustering
 from sklearn.metrics import silhouette_score, davies_bouldin_score, calinski_harabasz_score
 from measures.CDR_index import CDR_Index
@@ -55,10 +55,13 @@ bathymetry_path = "../../data/bathymetry/gebco_2022_sub_ice_topo/GEBCO_2022_sub_
 
 # Configuration for clustering experiments
 n_iterations = 10
+
 # umap_hyps = {"n_neighbors": 20, "min_dist": 0.0, "n_components": 3}
-# preprocessings = {"minmax": [MinMaxScaler], "minmax_umap": [MinMaxScaler, UMAP(**umap_hyps)]}
-umap_hyps = {"n_neighbors": 20, "min_dist": 0.99, "n_components": 3, "metric": "euclidean"}
-preprocessings = {"robust": [RobustScaler], "robust_umap": [RobustScaler, UMAP(**umap_hyps)]}
+# umap_hyps = {"n_neighbors": 30, "min_dist": 0.99, "n_components": 3, "metric": "euclidean"}
+# preprocessings = {"robust": [RobustScaler], "robust_umap": [RobustScaler, UMAP(**umap_hyps)]}
+umap_hyps = {"n_neighbors": 50, "min_dist": 0.8, "n_components": 3, "metric": "euclidean"}
+preprocessings = {"minmax": [MinMaxScaler], "minmax_umap": [MinMaxScaler, UMAP(**umap_hyps)]}
+
 algorithms_and_hyps = {"kmeans": (KMeans, {"n_clusters": list(range(2, 16)) + [20, 30, 40, 50, 60],
                                            "n_init": ["auto"]}),
                        "ward": (AgglomerativeClustering, {"n_clusters": range(2, 31), "distance_threshold": [None],
