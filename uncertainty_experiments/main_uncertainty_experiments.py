@@ -23,11 +23,11 @@ def run_dbscan_on_umap(df):
     df_scaled = pd.DataFrame(scaler.transform(df[config.parameters]), columns=config.parameters)
 
     # Get UMAP components
-    umap_cols = [f"e{i}" for i in range(hyp_config.umap_hyps["n_components"])]
+    umap_cols = [f"e{i}" for i in range(config.umap_hyps["n_components"])]
 
     for i in tqdm(range(config.n_iterations_uncertainty)):
         # Compute embedding
-        df_umap = pd.DataFrame(UMAP(**hyp_config.umap_hyps).fit_transform(df_scaled), columns=umap_cols)
+        df_umap = pd.DataFrame(UMAP(**config.umap_hyps).fit_transform(df_scaled), columns=umap_cols)
 
         # Compute DBSCAN
         model = DBSCAN(**hyp_config.dbscan_umap_hyps).fit(df_umap)
@@ -52,11 +52,11 @@ def run_dbscan_on_fixed_umap(df):
     df_scaled = pd.DataFrame(scaler.transform(df[config.parameters]), columns=config.parameters)
 
     # Get UMAP components
-    umap_cols = [f"e{i}" for i in range(hyp_config.umap_hyps["n_components"])]
+    umap_cols = [f"e{i}" for i in range(config.umap_hyps["n_components"])]
 
     # Compute one embedding (fixed for all DBSCAN runs)
     logging.info("    Compute embedding...")
-    df_umap = pd.DataFrame(UMAP(**hyp_config.umap_hyps).fit_transform(df_scaled), columns=umap_cols)
+    df_umap = pd.DataFrame(UMAP(**config.umap_hyps).fit_transform(df_scaled), columns=umap_cols)
 
     # Compute DBSCAN on UMAP multiple times while shuffling the input data
     logging.info("    Start computing DBSCAN runs on fixed embedding...")

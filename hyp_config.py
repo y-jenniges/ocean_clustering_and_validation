@@ -1,7 +1,4 @@
 """ Final hyperparameter combinations for the six conducted experiments. """
-# Final hyperparameters for UMAP
-umap_hyps = {"n_neighbors": 50, "min_dist": 0.8, "metric": "euclidean", "n_components": 3}
-
 # Final hyperparameters for KMeans on original data
 kmeans_original_hyps = {"n_clusters": 2, "n_init": "auto"}
 
