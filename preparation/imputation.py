@@ -1,7 +1,7 @@
 import pandas as pd
 import logging
 import numpy as np
-from sklearn.preprocessing import MinMaxScaler, RobustScaler
+from sklearn.preprocessing import MinMaxScaler
 from sklearn.impute import KNNImputer
 
 
@@ -37,7 +37,7 @@ def impute_data(csv_path, parameters, drop_columns, output_dir):
     df_scaled[spatial_cols] = scaler_spatial.transform(df_scaled[spatial_cols])
 
     # Scale parameters
-    scaler_params = RobustScaler().fit(df_scaled[parameters])
+    scaler_params = MinMaxScaler().fit(df_scaled[parameters])
     df_scaled[parameters] = scaler_params.transform(df_scaled[parameters])
 
     # Scale time (create cyclical time features)
