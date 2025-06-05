@@ -9,7 +9,7 @@ from pathlib import Path
 import config
 
 
-def run_clustering_experiments(df, preprocessing_steps, clustering_algorithms, n_iterations, scores,
+def run_clustering_experiments(df, preprocessing_steps, clustering_algorithms, iteration_list, scores,
                                store_labels=False, other_algos=[]):
     """
     Perform clustering experiments by building Pipelines with the given models.
@@ -18,7 +18,8 @@ def run_clustering_experiments(df, preprocessing_steps, clustering_algorithms, n
         df (pandas.DataFrame): Data to run the experiments on (column selection is specified by config.parameters)
         preprocessing_steps (dict): Name and model(s) to run for preprocessing
         clustering_algorithms (dict): Name and model(s) to run for clustering
-        n_iterations (int): How often each clustering experiment with each hyperparameter combination will be repeated
+        iteration_list (list<int>): Indices of iterations to be conducted of the clustering experiments with each
+        hyperparameter combination
         scores (dict): Name and model to run for internal validation
         store_labels (bool): Whether to store clustering labels or not (default is False)
         other_algos (list<str>): Clustering algorithms that were not added in the config file
@@ -33,7 +34,7 @@ def run_clustering_experiments(df, preprocessing_steps, clustering_algorithms, n
     data = df[config.parameters]
 
     # Perform each preprocessing-clustering_hyperparameters combination 10 times
-    for i in range(n_iterations):
+    for i in iteration_list:
         logging.info(f"Iteration {i}")
         # Iterate over preprocessing and clustering methods
         for preproc_name, preproc_steps in preprocessing_steps.items():
@@ -153,12 +154,19 @@ def run_clustering_experiments(df, preprocessing_steps, clustering_algorithms, n
                                      f"experiment.")
                     counter = counter + 1
 
+    # Helper function to extract cluster name from filename
+    def extract_cluster_name(filename):
+        matches = [name for name in clustering_algorithms.keys() if name in str(filename)]
+        if not matches:
+            return
+        return max(matches, key=len)  # Longest match wins
+
     # Combine and store internal validation results per clustering algorithm
     logging.info("Combining clustering experiment result files...")
     files_to_remove = []
+    all_files = list(Path(config.output_dir_clustering).glob("internal_validation_iteration*.csv"))
     for cluster_name in list(clustering_algorithms.keys()) + other_algos:
-        files_to_combine = [file for file in Path().glob(
-            f"{config.output_dir_clustering}/internal_validation_iteration*_*_{cluster_name}_*.csv")]
+        files_to_combine = [file for file in all_files if extract_cluster_name(file) == cluster_name]
         files_to_remove = files_to_remove + files_to_combine
         dfs = [pd.read_csv(file) for file in files_to_combine]
         dfs = pd.concat(dfs, ignore_index=True, axis=0)
@@ -171,10 +179,11 @@ def run_clustering_experiments(df, preprocessing_steps, clustering_algorithms, n
 
     # Combine label files
     files_to_remove = []
+    all_files = list(Path(config.output_dir_clustering).glob("labels_iteration*.csv"))
     for cluster_name in list(clustering_algorithms.keys()) + other_algos:
         dfs = []
-        files_to_combine = [file for file in Path().glob(
-            f"{config.output_dir_clustering}/labels_iteration*_*_{cluster_name}_*.csv")]
+        # Find relevant files (and ensure that no other cluster name appears)
+        files_to_combine = [file for file in all_files if extract_cluster_name(file) == cluster_name]
 
         for file in files_to_combine:
             # Determine parameters from filename
