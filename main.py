@@ -161,7 +161,7 @@ if __name__ == "__main__":
         start = time()
         # Configure new logging (store in logging file and in console)
         logging.basicConfig(level=logging.DEBUG,
-                            handlers=[logging.FileHandler(config.output_dir + "logs_clustering.log"),
+                            handlers=[  # logging.FileHandler(config.output_dir + "logs_clustering.log"),
                                       logging.StreamHandler(stream=sys.stdout)])
 
         # Add spatially constrained Ward to config
