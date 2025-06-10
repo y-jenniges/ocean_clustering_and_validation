@@ -9,7 +9,7 @@ from validation.cvis import DBCV_score
 
 
 # Output directories
-output_dir = "output_new/"
+output_dir = "output_minmax/"
 output_dir_clustering = output_dir + "/clustering/"
 output_dir_uncertainty = output_dir + "/uncertainty/"
 output_dir_plots = output_dir + "/plots/"
@@ -57,9 +57,9 @@ bathymetry_path = "../../data/bathymetry/gebco_2022_sub_ice_topo/GEBCO_2022_sub_
 n_iterations = 10
 
 # umap_hyps = {"n_neighbors": 20, "min_dist": 0.0, "n_components": 3}
-# umap_hyps = {"n_neighbors": 30, "min_dist": 0.99, "n_components": 3, "metric": "euclidean"}
+# umap_hyps = {"n_neighbors": 30, "min_dist": 0.8, "n_components": 3, "metric": "euclidean"}
 # preprocessings = {"robust": [RobustScaler], "robust_umap": [RobustScaler, UMAP(**umap_hyps)]}
-umap_hyps = {"n_neighbors": 50, "min_dist": 0.8, "n_components": 3, "metric": "euclidean"}
+umap_hyps = {"n_neighbors": 30, "min_dist": 0.99, "n_components": 3, "metric": "euclidean"}  # formerly 50 and 0.8
 preprocessings = {"minmax": [MinMaxScaler], "minmax_umap": [MinMaxScaler, UMAP(**umap_hyps)]}
 
 algorithms_and_hyps = {"kmeans": (KMeans, {"n_clusters": list(range(2, 16)) + [20, 30, 40, 50, 60],
