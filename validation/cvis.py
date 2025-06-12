@@ -609,4 +609,4 @@ def DBCV_score(
     )
 
     # Only return aggregated score
-    return DBCV_val_agg  # , DBCV_val_ind
+    return DBCV_val_agg, DBCV_val_ind
