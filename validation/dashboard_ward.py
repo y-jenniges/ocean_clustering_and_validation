@@ -16,7 +16,7 @@ score_map = {"Silhouette": "silhouette", "Calinski-Harabasz": "calinski_harabasz
              "N clusters": "nclusters", "k-DBCV": "kdbcv", "CDR": "cdr", "CVNN Halkidi": "cvnn_hal"}
 
 # Load original data
-df_original = pd.read_csv(f"{config.output_dir}/wide_table_knn.csv")
+df_original = pd.read_csv(f"{config.output_dir}/wide_table_knn_minmax.csv")
 
 # Load labels
 iteration = 0
