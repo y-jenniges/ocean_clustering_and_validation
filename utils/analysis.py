@@ -2,7 +2,6 @@ from scipy.spatial.transform import Rotation as R
 import pandas as pd
 from pathlib import Path
 from visualisation.plotting import plot_embedding
-import hyp_config
 import config
 
 
@@ -60,7 +59,7 @@ def prepare_labels_df(labels_df, iteration=0):
     temp = temp.dropna(axis=1, how="all")
 
     # Make the labels of the 2 preprocessing methods different columns
-    umap_cols = [f"e{i}" for i in range(hyp_config.umap_hyps["n_components"])]
+    umap_cols = [f"e{i}" for i in range(config.umap_hyps["n_components"])]
     labels_pivoted = temp.drop(columns=umap_cols).pivot(
         index=[x for x in temp if x not in ["preprocessing", "label"] + umap_cols],
         columns="preprocessing",
