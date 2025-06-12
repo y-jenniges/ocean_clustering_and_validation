@@ -154,7 +154,7 @@ if __name__ == "__main__":
         end = time()
         logging.info(f"Database preparation, gridding and imputation took {end - start} seconds.")
     else:
-        df = pd.read_csv(config.output_dir + "/wide_table_knn.csv")
+        df = pd.read_csv(config.output_dir + "/wide_table_knn_minmax.csv")
 
     # Perform clustering experiments (and internal validation via scores)
     if args.run_clusterings:
