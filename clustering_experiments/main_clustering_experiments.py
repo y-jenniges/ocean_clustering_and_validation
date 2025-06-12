@@ -95,6 +95,11 @@ def run_clustering_experiments(df, preprocessing_steps, clustering_algorithms, i
                                 score = score_model(transformed_data, labels)
                             else:
                                 score = np.nan
+
+                            # k-DBCV returns a tuple, only return the first entry
+                            if score_name == "kdbcv":
+                                score = score[0]
+
                             logging.info(f"          Score computed in: {time() - st}")
                             score_dict[score_name] = score
                         end_time_scores = time()
