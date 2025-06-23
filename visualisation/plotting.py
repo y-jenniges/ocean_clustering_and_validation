@@ -71,8 +71,10 @@ def plot_embedding(embedding, color_label=None, alpha=0.08, size=2, save_as=None
             ax.scatter(x, y, z, alpha=alpha, c=c, s=size, marker=".")
 
         plt.subplots_adjust(left=-0.05, right=0.9, top=1.1, bottom=0)
+        ax.tick_params(axis='z', labelsize=ticklabelsize)
     # 2d
     else:
+        ax = fig.add_subplot()
         if c is None:
             plt.scatter(x, y, alpha=alpha, s=size, marker=".")
         else:
@@ -82,7 +84,6 @@ def plot_embedding(embedding, color_label=None, alpha=0.08, size=2, save_as=None
     plt.ylabel("Y-axis", fontsize=fontsize)
     ax.tick_params(axis='x', labelsize=ticklabelsize)
     ax.tick_params(axis='y', labelsize=ticklabelsize)
-    ax.tick_params(axis='z', labelsize=ticklabelsize)
     plt.tight_layout()
     plt.subplots_adjust(left=-0.01, right=0.92, top=1.1, bottom=0)
     if save_as:
