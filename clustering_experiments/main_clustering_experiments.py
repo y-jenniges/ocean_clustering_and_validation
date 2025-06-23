@@ -10,7 +10,7 @@ import config
 
 
 def run_clustering_experiments(df, preprocessing_steps, clustering_algorithms, iteration_list, scores,
-                               store_labels=False, other_algos=[]):
+                               store_labels=False):
     """
     Perform clustering experiments by building Pipelines with the given models.
 
@@ -22,7 +22,6 @@ def run_clustering_experiments(df, preprocessing_steps, clustering_algorithms, i
         hyperparameter combination
         scores (dict): Name and model to run for internal validation
         store_labels (bool): Whether to store clustering labels or not (default is False)
-        other_algos (list<str>): Clustering algorithms that were not added in the config file
     """
     logging.info("Starting clustering experiments...")
     logging.getLogger('numba').setLevel(logging.WARNING)  # Hide numba debug messages (numba is used in umap-learn)
@@ -159,6 +158,18 @@ def run_clustering_experiments(df, preprocessing_steps, clustering_algorithms, i
                                      f"experiment.")
                     counter = counter + 1
 
+    logging.info("Clustering experiments complete.")
+
+
+def summarise_clustering_results(clustering_algorithms, other_algos):
+    """ Combining clustering output files for internal and external validation.
+
+    Args:
+        clustering_algorithms (dict): Name and model(s) to run for clustering
+        other_algos (list<str>): Clustering algorithms that were not added in the config file
+    """
+    logging.info("Summarise clustering results...")
+
     # Helper function to extract cluster name from filename
     def extract_cluster_name(filename):
         matches = [name for name in clustering_algorithms.keys() if name in str(filename)]
@@ -230,7 +241,4 @@ def run_clustering_experiments(df, preprocessing_steps, clustering_algorithms, i
     #     if file.exists():
     #         file.unlink()
 
-    logging.info("Clustering experiments complete.")
-
-
-
+    logging.info("Files summarised.")

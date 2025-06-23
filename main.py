@@ -15,8 +15,6 @@ import logging
 import pandas as pd
 from time import time
 from pathlib import Path
-from clustering_experiments.main_clustering_experiments import run_clustering_experiments
-from preparation.preparation import grid_and_impute_data, prepare_database
 import numpy as np
 from sklearn.neighbors import kneighbors_graph
 from sklearn.cluster import AgglomerativeClustering
@@ -25,6 +23,8 @@ import copy
 
 import config
 from uncertainty_experiments.main_uncertainty_experiments import run_uncertainty_experiments
+from clustering_experiments.main_clustering_experiments import run_clustering_experiments, summarise_clustering_results
+from preparation.preparation import grid_and_impute_data, prepare_database
 
 
 def create_output_directories():
@@ -181,8 +181,9 @@ if __name__ == "__main__":
                                    clustering_algorithms=updated_algorithms,
                                    iteration_list=cluster_iterations,
                                    scores=config.scores,
-                                   store_labels=True,
-                                   other_algos=["spatial_ward"])
+                                   store_labels=True
+                                   )
+        summarise_clustering_results(clustering_algorithms=updated_algorithms, other_algos=["spatial_ward"])
         end = time()
         logging.info(f"Running the clustering experiments took {end - start} seconds.")
 
