@@ -5,6 +5,7 @@ from dash.dependencies import Input, Output, State
 import numpy as np
 import pandas as pd
 import itertools as it
+import base64
 
 import config
 from utils.analysis import prepare_labels_df
@@ -16,13 +17,16 @@ def update_heatmap(df, score, eps, min_samples):
     print("  Update heatmap", score, eps, min_samples)
     # Create new heatmap
     new_field = pd.DataFrame(df[score_map[score]].to_numpy().reshape(len(epss), len(min_sampless)),
-                             index=epss, columns=min_sampless)
+                             index=list(epss), columns=list(min_sampless))
 
     # Get new current heatmap value
     score_value = new_field.loc[eps, min_samples]
 
     # Update the heatmap figure with a red frame around the selected point
-    new_fig = px.imshow(new_field, aspect="auto",
+    new_fig = px.imshow(new_field,
+                        x=list(new_field.columns),
+                        y=list(new_field.index),
+                        aspect="auto",
                         labels={"x": "min_samples", "y": "eps", "color": score},
                         color_continuous_scale='gray')
 
@@ -318,9 +322,14 @@ def update(figure_heatmap, clickData_heatmap, figure_geo, figure_umap, figure_de
         new_heatmap_fig = update_heatmap_selection(fig=new_heatmap_fig, eps=new_eps, min_samples=new_min_samples)
 
         # Find new score value
-        min_samples_idx = np.where(np.array(new_heatmap_fig["data"][0]["x"]) == new_min_samples)
-        eps_idx = np.where(np.array(new_heatmap_fig["data"][0]["y"]) == new_eps)
-        new_score_value = np.array(new_heatmap_fig["data"][0]["z"])[eps_idx, min_samples_idx][0, 0]
+        min_samples_idx = np.where(np.array(new_heatmap_fig["data"][0]["x"]) == new_min_samples)[0][0]
+        eps_idx = np.where(np.array(new_heatmap_fig["data"][0]["y"]) == new_eps)[0][0]
+        if isinstance(new_heatmap_fig["data"][0]["z"], dict):
+            z_array = np.array([[v for k, v in sorted(d.items(), key=lambda x: int(x[0]))] for d in
+                                new_heatmap_fig["data"][0]["z"]["_inputArray"]])
+            new_score_value = z_array[eps_idx, min_samples_idx]
+        else:
+            new_score_value = np.array(new_heatmap_fig["data"][0]["z"])[eps_idx, min_samples_idx]  # [0, 0]
 
         # Update label plots
         new_geo_fig, new_umap_fig = update_geo_and_umap(eps=new_eps, min_samples=new_min_samples,
