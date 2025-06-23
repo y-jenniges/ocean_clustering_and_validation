@@ -56,10 +56,10 @@ bathymetry_path = "../../data/bathymetry/gebco_2022_sub_ice_topo/GEBCO_2022_sub_
 # Configuration for clustering experiments
 n_iterations = 10
 
-# umap_hyps = {"n_neighbors": 20, "min_dist": 0.0, "n_components": 3}
+umap_hyps = {"n_neighbors": 20, "min_dist": 0.0, "n_components": 3}
 # umap_hyps = {"n_neighbors": 30, "min_dist": 0.8, "n_components": 3, "metric": "euclidean"}
 # preprocessings = {"robust": [RobustScaler], "robust_umap": [RobustScaler, UMAP(**umap_hyps)]}
-umap_hyps = {"n_neighbors": 30, "min_dist": 0.99, "n_components": 3, "metric": "euclidean"}  # formerly 50 and 0.8
+# umap_hyps = {"n_neighbors": 30, "min_dist": 0.99, "n_components": 3, "metric": "euclidean"}  # formerly 50 and 0.8
 preprocessings = {"minmax": [MinMaxScaler], "minmax_umap": [MinMaxScaler, UMAP(**umap_hyps)]}
 
 algorithms_and_hyps = {"kmeans": (KMeans, {"n_clusters": list(range(2, 16)) + [20, 30, 40, 50, 60],
