@@ -183,7 +183,7 @@ if __name__ == "__main__":
                                    scores=config.scores,
                                    store_labels=True
                                    )
-        summarise_clustering_results(clustering_algorithms=updated_algorithms, other_algos=["spatial_ward"])
+        summarise_clustering_results(clustering_algorithms=updated_algorithms)
         end = time()
         logging.info(f"Running the clustering experiments took {end - start} seconds.")
 

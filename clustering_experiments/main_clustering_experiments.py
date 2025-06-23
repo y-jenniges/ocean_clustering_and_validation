@@ -161,12 +161,11 @@ def run_clustering_experiments(df, preprocessing_steps, clustering_algorithms, i
     logging.info("Clustering experiments complete.")
 
 
-def summarise_clustering_results(clustering_algorithms, other_algos):
+def summarise_clustering_results(clustering_algorithms):
     """ Combining clustering output files for internal and external validation.
 
     Args:
         clustering_algorithms (dict): Name and model(s) to run for clustering
-        other_algos (list<str>): Clustering algorithms that were not added in the config file
     """
     logging.info("Summarise clustering results...")
 
@@ -181,7 +180,7 @@ def summarise_clustering_results(clustering_algorithms, other_algos):
     logging.info("Combining clustering experiment result files...")
     files_to_remove = []
     all_files = list(Path(config.output_dir_clustering).glob("internal_validation_iteration*.csv"))
-    for cluster_name in list(clustering_algorithms.keys()) + other_algos:
+    for cluster_name in list(clustering_algorithms.keys()):
         files_to_combine = [file for file in all_files if extract_cluster_name(file) == cluster_name]
         files_to_remove = files_to_remove + files_to_combine
         dfs = [pd.read_csv(file) for file in files_to_combine]
@@ -196,7 +195,7 @@ def summarise_clustering_results(clustering_algorithms, other_algos):
     # Combine label files
     files_to_remove = []
     all_files = list(Path(config.output_dir_clustering).glob("labels_iteration*.csv"))
-    for cluster_name in list(clustering_algorithms.keys()) + other_algos:
+    for cluster_name in list(clustering_algorithms.keys()):
         dfs = []
         # Find relevant files (and ensure that no other cluster name appears)
         files_to_combine = [file for file in all_files if extract_cluster_name(file) == cluster_name]
@@ -236,9 +235,9 @@ def summarise_clustering_results(clustering_algorithms, other_algos):
             out_file = f"{config.output_dir_clustering}labels_{cluster_name}.csv"
         dfs.to_csv(out_file, index=False)
 
-    # # Remove previously combined files
-    # for file in files_to_remove:
-    #     if file.exists():
-    #         file.unlink()
+    # Remove previously combined files
+    for file in files_to_remove:
+        if file.exists():
+            file.unlink()
 
     logging.info("Files summarised.")
