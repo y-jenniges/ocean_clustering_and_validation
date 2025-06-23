@@ -20,6 +20,7 @@ from preparation.preparation import grid_and_impute_data, prepare_database
 import numpy as np
 from sklearn.neighbors import kneighbors_graph
 from sklearn.cluster import AgglomerativeClustering
+from sklearn.preprocessing import MinMaxScaler
 import copy
 
 import config
@@ -63,11 +64,18 @@ def add_spatially_constrained_ward_to_config(df_in, lat_col="LATITUDE", lon_col=
     z = R * np.sin(lat_rad)
 
     # Include scaled depth as 4th dimension
-    depth_scaled = df_in[depth_col].values / depth_scale
-    X_spatial = np.vstack([x, y, z, depth_scaled]).T
+    layer_tops = config.grid_config["z_array"]
+    layer_thickness = np.diff(np.append(layer_tops, layer_tops[-1]))
+    layer_centers = layer_tops + 0.5 * layer_thickness
+    depth_map = dict(zip(layer_tops, layer_centers))
+    df_in["DEPTH_CENTER"] = df_in[depth_col].map(depth_map) / 1000.0  # Convert to km
+
+    # Assemble coordinates and scale
+    X_spatial = np.vstack([x, y, z, df_in["DEPTH_CENTER"].values]).T
+    X_normalized = MinMaxScaler().fit_transform(X_spatial)
 
     # Build connectivity graph
-    connectivity_matrix = kneighbors_graph(X_spatial, n_neighbors=n_neighbors, include_self=False)
+    connectivity_matrix = kneighbors_graph(X_normalized, n_neighbors=n_neighbors, include_self=False)
 
     # Copy the algorithm config and add new entry
     updated_algorithms = copy.deepcopy(config.algorithms_and_hyps)
@@ -165,7 +173,7 @@ if __name__ == "__main__":
                                       logging.StreamHandler(stream=sys.stdout)])
 
         # Add spatially constrained Ward to config
-        updated_algorithms = add_spatially_constrained_ward_to_config(df, n_neighbors=21)
+        updated_algorithms = add_spatially_constrained_ward_to_config(df, n_neighbors=52)
 
         # Run experiments
         run_clustering_experiments(df=df,
