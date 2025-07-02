@@ -200,7 +200,7 @@ def compute_uncertainty_metrics_on_files(prefix="fixedUmap_dbscan_", ignore_nois
 
 
 def plot_uncertainty_metrics(prefix="fixedUmap_dbscan_", close_plots=True):
-    """ Plot uncertainty metrics: F clustering accuracy, normalised mutual information and overlap.
+    """ Plot uncertainty metrics: F clustering accuracy, normalised mutual information, overlap and adjusted Rand score.
     Args:
         prefix (str): Used to load the data as {config.output_dir_uncertainty}{prefix}uncertainty_metrics.csv and as
         prefix to store the plots
@@ -219,7 +219,7 @@ def plot_uncertainty_metrics(prefix="fixedUmap_dbscan_", close_plots=True):
     sns.histplot(df_res.f_accuracy)
     plt.xlabel("F clustering accuracy")
     plt.tight_layout()
-    plt.savefig(f"{config.output_dir_plots}{prefix}f_clustering_accuracy.png")
+    plt.savefig(f"{config.output_dir_plots_high_res}{prefix}f_clustering_accuracy.png", dpi=1000)
     if close_plots:
         plt.close()
     else:
@@ -230,7 +230,7 @@ def plot_uncertainty_metrics(prefix="fixedUmap_dbscan_", close_plots=True):
     sns.histplot(df_res.normalized_mutual_information)
     plt.xlabel("Normalised mutual information")
     plt.tight_layout()
-    plt.savefig(f"{config.output_dir_plots}{prefix}normalised_mutual_information.png")
+    plt.savefig(f"{config.output_dir_plots_high_res}{prefix}normalised_mutual_information.png", dpi=1000)
     if close_plots:
         plt.close()
     else:
@@ -248,9 +248,23 @@ def plot_uncertainty_metrics(prefix="fixedUmap_dbscan_", close_plots=True):
     else:
         plt.show()
 
+    # Plot Adjusted Rand Score
+    plt.figure(figsize=figsize)
+    sns.histplot(df_res.adjusted_rand_score)
+    plt.xlabel("Adjusted Rand Index")
+    plt.ticklabel_format(style='plain', axis='x', useOffset=False)
+    plt.tight_layout()
+    plt.savefig(f"{config.output_dir_plots_high_res}{prefix}adjusted_rand_score.png", dpi=1000)
+    if close_plots:
+        plt.close()
+    else:
+        plt.show()
+
     # Print main metrics
     logging.info(
         f"  Mean F clustering accuracy is {df_res.f_accuracy.mean() * 100} +- {df_res.f_accuracy.std() * 100} %")
     logging.info(f"  Mean normalised mutual information is {df_res.normalized_mutual_information.mean() * 100} +- "
                  f"{df_res.normalized_mutual_information.std() * 100} %")
     logging.info(f"  Mean overlap is {df_res.overlap.mean() * 100} +- {df_res.overlap.std() * 100} %")
+    logging.info(f"  Mean adjusted Rand is {df_res.adjusted_rand_score.mean() * 100} +- "
+                 f"{df_res.adjusted_rand_score.std() * 100} %")
