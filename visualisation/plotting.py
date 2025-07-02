@@ -397,9 +397,7 @@ def compare_stats(df, labels, vars=None, vars_map=None, save_as=None, sort_label
     plt.show()
 
 
-def plot_sankey(df, source_col="label", target_col="emu_label",
-                source_name="Our Cluster Set", target_name="EMU",
-                figsize=(10, 6), save_as=None, dpi=100):
+def plot_sankey(df, source_col="label", target_col="emu_label", figsize_px=(8270, 11690), save_as=None):
     # Convert labels to string (-> avoid integer issues)
     df[source_col] = df[source_col].astype(str)
     df[target_col] = df[target_col].astype(str)
@@ -412,10 +410,6 @@ def plot_sankey(df, source_col="label", target_col="emu_label",
     flow_counts = df.groupby([source_col, target_col]).size().reset_index(name="count")
     flow_counts["source_idx"] = flow_counts[source_col].map(label_to_index)
     flow_counts["target_idx"] = flow_counts[target_col].map(label_to_index)
-
-    # Convert figsize to pixels
-    width_px = int(figsize[0] * 96)
-    height_px = int(figsize[1] * 96)
 
     # Create Sankey diagram
     fig = go.Figure(data=[go.Sankey(
@@ -433,14 +427,9 @@ def plot_sankey(df, source_col="label", target_col="emu_label",
         )
     )])
 
-    fig.update_layout(
-        title_text=f"Sankey Diagram: {source_name} - {target_name}",
-        font_size=10,
-        width=width_px,
-        height=height_px
-    )
+    fig.update_layout(font_size=10, width=figsize_px[0], height=figsize_px[1])
     fig.show()
 
     # Optionally save diagram
     if save_as:
-        fig.write_image(save_as, scale=dpi / 100)
+        fig.write_image(save_as)
