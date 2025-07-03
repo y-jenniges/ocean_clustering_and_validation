@@ -9,6 +9,7 @@ from sklearn.preprocessing import MinMaxScaler
 import plotly.graph_objects as go
 from shapely.geometry import box
 from cartopy.io import shapereader
+from floweaver import *
 
 
 def plot_each_depth_level(df, color_label="water", save_as="output/grid_cells.png"):
@@ -397,39 +398,49 @@ def compare_stats(df, labels, vars=None, vars_map=None, save_as=None, sort_label
     plt.show()
 
 
-def plot_sankey(df, source_col="label", target_col="emu_label", figsize_px=(8270, 11690), save_as=None):
-    # Convert labels to string (-> avoid integer issues)
-    df[source_col] = df[source_col].astype(str)
-    df[target_col] = df[target_col].astype(str)
+def plot_sankey(df, source_col, target_col, color_col, color_palette="Blues_9", figsize_px=(827, 1169), save_as=None):
+    """ Sankey plot.
+    Args:
+        df (pandas.DataFrame): Input data to display.
+        source_col (str): Name of column depicting source of the flow.
+        target_col (str): Name of column depicting target of the flow.
+        color_col (str): Name of column depicting colour of the flow.
+        color_palette (str): Colour palette to apply.
+        figsize_px (Tuple<int, int>): Figure width and height in pixels.
+        save_as (str): If specified, saves plot under this name.
+    Returns:
+        Sankey plot object
+    """
+    # Rename for fw conventions
+    flows = df.rename(columns={source_col: "source", target_col: "target", "LEV_M": "value"})
 
-    # Create all unique labels and index mapping
-    all_labels = pd.Series(pd.concat([df[source_col], df[target_col]])).unique()
-    label_to_index = {label: idx for idx, label in enumerate(all_labels)}
+    # Define figure size
+    size = dict(width=figsize_px[0], height=figsize_px[1])
 
-    # Count flows
-    flow_counts = df.groupby([source_col, target_col]).size().reset_index(name="count")
-    flow_counts["source_idx"] = flow_counts[source_col].map(label_to_index)
-    flow_counts["target_idx"] = flow_counts[target_col].map(label_to_index)
+    # Unique and sorted sources and targets
+    sources_sorted = list(np.sort(flows["source"].unique()))
+    targets_sorted = list(np.sort(flows["target"].unique()))
 
-    # Create Sankey diagram
-    fig = go.Figure(data=[go.Sankey(
-        node=dict(
-            pad=15,
-            thickness=15,
-            line=dict(color="black", width=0.5),
-            label=list(label_to_index.keys()),
-            color="blue"
-        ),
-        link=dict(
-            source=flow_counts["source_idx"],
-            target=flow_counts["target_idx"],
-            value=flow_counts["count"]
-        )
-    )])
+    # Partitioning
+    source_partition = Partition.Simple("process", sources_sorted)
+    target_partition = Partition.Simple("process", targets_sorted)
 
-    fig.update_layout(font_size=10, width=figsize_px[0], height=figsize_px[1])
-    fig.show()
+    # Define nodes
+    nodes = {
+        'Source Labels': ProcessGroup(sources_sorted, partition=source_partition),
+        'Target Labels': ProcessGroup(targets_sorted, partition=target_partition),
+    }
 
-    # Optionally save diagram
+    ordering = [["Source Labels"], ["Target Labels"]]
+    bundles = [Bundle("Source Labels", "Target Labels")]
+
+    # Create plot
+    sdd = SankeyDefinition(nodes, bundles, ordering)
+    sankey = weave(sdd, flows, measures={"value": "size", color_col: "mean"}, link_width="LEV_M",
+                   link_color=QuantitativeScale(color_col, palette=color_palette)).to_widget(**size)
+
+    # Save plot as png
     if save_as:
-        fig.write_image(save_as)
+        sankey.auto_save_png(save_as)
+
+    return sankey
