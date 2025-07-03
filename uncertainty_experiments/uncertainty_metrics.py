@@ -228,7 +228,7 @@ def plot_uncertainty_metrics(prefix="fixedUmap_dbscan_", close_plots=True):
     # Plot Normalised Mutual Information
     plt.figure(figsize=figsize)
     sns.histplot(df_res.normalized_mutual_information)
-    plt.xlabel("Normalised mutual information")
+    plt.xlabel("Normalised Mutual Information")
     plt.tight_layout()
     plt.savefig(f"{config.output_dir_plots_high_res}{prefix}normalised_mutual_information.png", dpi=1000)
     if close_plots:
