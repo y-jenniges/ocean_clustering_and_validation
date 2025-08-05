@@ -21,10 +21,11 @@ and one iteration of the clustering experiments ~15.5h.
 <br>
 
 For an **interactive dashboard visualisation** of the final clustering, refer to:
-- Code: https://github.com/y-jenniges/ocean_cluster_dashboard
 - Dashboard: https://ocean-cluster-dashboard.onrender.com
+- Code: https://github.com/y-jenniges/ocean_cluster_dashboard
+- Cite as: [![DOI](https://zenodo.org/badge/942610726.svg)](https://doi.org/10.5281/zenodo.16742243)
 
-[![DOI](https://zenodo.org/badge/943827424.svg)](https://doi.org/10.5281/zenodo.15202343)
+Cite this code base: [![DOI](https://zenodo.org/badge/943827424.svg)](https://doi.org/10.5281/zenodo.15202343)
 
 [1] Korablev, A., Olsen, A., Geophysical Institute, University of Bergen, Bjerknes Centre for Climate Research (2022).COMFORT Dataset [Data set]. Norstore. https://doi.org/10.11582/2022.00039
 
