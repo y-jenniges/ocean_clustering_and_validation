@@ -1,6 +1,6 @@
 # Ocean clustering and validation
 
-Code accompanying the paper ***Jenniges et al.: Systematic definition and validation of 3-dimensional physical and biogeochemical ocean clusters using unsupervised machine learning. (submitted to Elsevier)***
+Code accompanying the paper ***Jenniges et al.: Unveiling 3D Ocean Biogeochemical Provinces in the North Atlantic: A Systematic Comparison and Validation of Clustering Methods (submitted to Ecological Informatics).***
 
 **Note:** Please be aware that running the code requires enough disc space (at least 100 GB) and may take some time to run. 
 On a computer with 200GB free disc space, 32GB RAM, an Intel(R) Core(TM) i7-11800H and 8 cores, 
