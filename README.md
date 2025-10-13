@@ -1,6 +1,7 @@
 # Ocean clustering and validation
 
-Code accompanying the paper ***Jenniges et al.: Unveiling 3D Ocean Biogeochemical Provinces in the North Atlantic: A Systematic Comparison and Validation of Clustering Methods (submitted to Ecological Informatics).***
+Code accompanying the paper 
+***Jenniges et al. (2025). Unveiling 3D ocean biogeochemical provinces in the North Atlantic: A systematic comparison and validation of clustering methods. Ecological Informatics, 91, 103390. https://doi.org/10.1016/j.ecoinf.2025.103390.***
 
 **Note:** Please be aware that running the code requires enough disc space (at least 100 GB) and may take some time to run. 
 On a computer with 200GB free disc space, 32GB RAM, an Intel(R) Core(TM) i7-11800H and 8 cores, 
