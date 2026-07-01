@@ -562,6 +562,8 @@ class Grid:
             if self.mode in ["Y", "YM", "YD"]:
                 time_bins = pd.DatetimeIndex(self.time_array)
                 time_bins = time_bins.union([pd.Timestamp(self.time_max) + pd.Timedelta(nanoseconds=1)])
+                # Round microseconds
+                df["DATEANDTIME"] = pd.to_datetime(df["DATEANDTIME"], format="ISO8601").dt.round("s")
                 df["DATEANDTIME"] = pd.cut(pd.to_datetime(df["DATEANDTIME"], format="%Y-%m-%d %H:%M:%S"),
                                            bins=time_bins, labels=time_bins[:-1], right=False)
                 # df["DATEANDTIME"] = df["DATEANDTIME"].astype(np.datetime64).dt.strftime("%Y-%m-%d %H:%M:%S")
