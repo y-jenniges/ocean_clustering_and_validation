@@ -152,9 +152,11 @@ if __name__ == "__main__":
                             handlers=[logging.FileHandler(config.output_dir + "logs_prepare.log"),
                                       logging.StreamHandler(stream=sys.stdout)])
 
-        prepare_database(parameters=config.parameters, quality_flags=config.quality_flags,
+        prepare_database(parameters=config.parameters,
+                         quality_flags=config.quality_flags,
                          temperature_to_potential=True,
-                         source_db_path=config.source_db_path, dest_db_path=config.dest_db_path)
+                         source_db_path=config.source_db_path,
+                         dest_db_path=config.dest_db_path)
         df = grid_and_impute_data(db_path=config.dest_db_path, grid_config=config.grid_config,
                                   bathymetry_path=config.bathymetry_path,
                                   parameters=config.parameters,
